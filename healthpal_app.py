@@ -141,6 +141,7 @@ defaults = {
     "trend_days": 7,
     "notif_meds": True,
     "notif_reports": False,
+    "pending_question": None,
 }
 for k, v in defaults.items():
     if k not in st.session_state:
@@ -442,6 +443,16 @@ html, body, [data-testid="stAppViewContainer"] {
 .hp-setting-text .st { font-size: 14px; font-weight: 500; color: #0F172A; margin: 0; }
 .hp-setting-text .ss { font-size: 12px; color: #94A3B8; margin: 1px 0 0; }
 
+/* ── AI example question chips ── */
+.hp-eq-chip-row { display: flex; flex-wrap: wrap; gap: 7px; padding: 6px 16px 4px; }
+.hp-eq-chip {
+    background: #EEF2FF; color: #3B5BDB; border: 1.5px solid #C7D2FE;
+    border-radius: 20px; padding: 7px 13px; font-size: 12px; font-weight: 600;
+    cursor: pointer; white-space: nowrap; flex-shrink: 0;
+    transition: background .15s;
+}
+.hp-eq-chip:hover { background: #E0E7FF; }
+
 /* ── community ── */
 .hp-community-empty {
     text-align: center; padding: 52px 20px; color: #94A3B8; font-size: 14px;
@@ -466,40 +477,42 @@ div[data-testid="stExpander"] {
 """, unsafe_allow_html=True)
 
 # ═══════════════════════════════════════════════════════════════════════════
-# LLM — fixed to Anthropic / claude-sonnet-4-6
+# LLM — MERaLiON nutrition assistant
 # ═══════════════════════════════════════════════════════════════════════════
-def ask_ai(prompt: str, include_context: bool = True) -> str:
-    key = get_secret("anthropic_key")
+def ask_ai_merlion(history: list, new_prompt: str) -> str:
+    key = get_secret("merlion_API_KEY")
     if not key:
-        return "⚠️ Anthropic API key not configured in secrets.toml"
+        return "⚠️ MERaLiON API key not configured in secrets.toml"
     try:
-        from anthropic import Anthropic
-        client = Anthropic(api_key=key)
-        if include_context:
-            user = get_user()
-            lv = get_latest_vitals()
-            conditions = ", ".join(user.get("conditions", []))
-            ctx = (
-                f"You are HealthPal, a caring AI health assistant. "
-                f"Patient: {user.get('name','')}, age {user.get('age','?')}, "
-                f"{user.get('gender','?')}. Conditions: {conditions}. "
-                f"Latest BP: {lv.get('systolic','?')}/{lv.get('diastolic','?')} mmHg, "
-                f"HR: {lv.get('heart_rate','?')} bpm, "
-                f"Glucose: {lv.get('glucose','?')} mmol/L. "
-                f"Be concise and supportive."
-            )
-            messages = [
-                {"role": "user", "content": f"{ctx}\n\nUser question: {prompt}"}
-            ]
-        else:
-            messages = [{"role": "user", "content": prompt}]
-        r = client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=500,
-            temperature=0.5,
+        from openai import OpenAI
+        client = OpenAI(
+            base_url="http://meralion.org:8010/v1",
+            api_key=key,
+        )
+        user = get_user()
+        lv = get_latest_vitals()
+        conditions = ", ".join(user.get("conditions", []))
+        system_prompt = (
+            "You are a professional personal nutrition assistant specialising in Southeast Asian cuisine "
+            "and dietary habits. You give personalised food and meal recommendations using dishes from "
+            "Malaysia, Singapore, Indonesia, Thailand, Vietnam, the Philippines, and neighbouring SEA countries. "
+            "You remember the conversation history and build on it for consistent, personalised advice. "
+            f"Patient profile: {user.get('name','')}, age {user.get('age','?')}, {user.get('gender','?')}. "
+            f"Medical conditions: {conditions}. "
+            f"Latest vitals — BP: {lv.get('systolic','?')}/{lv.get('diastolic','?')} mmHg, "
+            f"HR: {lv.get('heart_rate','?')} bpm, Glucose: {lv.get('glucose','?')} mmol/L. "
+            "Always tailor recommendations to these conditions. Be warm, practical, and concise."
+        )
+        messages = [{"role": "system", "content": system_prompt}]
+        for msg in history:
+            role = "assistant" if msg["role"] == "assistant" else "user"
+            messages.append({"role": role, "content": msg["content"]})
+        messages.append({"role": "user", "content": new_prompt})
+        response = client.chat.completions.create(
+            model="MERaLiON/MERaLiON-3-10B",
             messages=messages,
         )
-        return r.content[0].text
+        return response.choices[0].message.content
     except Exception as e:
         return f"Error: {e}"
 
@@ -763,10 +776,10 @@ def page_medications():
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# PAGE: AI CHAT  (provider fixed to claude-sonnet-4-6)
+# PAGE: AI CHAT  (MERaLiON SEA nutrition assistant)
 # ═══════════════════════════════════════════════════════════════════════════
 def page_ai_chat():
-    st.markdown(f'<div class="hp-page-title">🤖 {S("title_ai")}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="hp-page-title">🥗 {S("title_ai")}</div>', unsafe_allow_html=True)
 
     if st.session_state.chat_history:
         msgs_html = '<div class="chat-scroll">'
@@ -778,10 +791,33 @@ def page_ai_chat():
     else:
         st.markdown("""
         <div class="hp-chat-empty">
-          <div style="font-size:44px;margin-bottom:10px;">🤖</div>
-          <div style="font-weight:600;color:#6B7280;margin-bottom:4px;">Hi, I'm HealthPal AI</div>
-          <div style="font-size:12px;">Ask me anything about your health.</div>
+          <div style="font-size:44px;margin-bottom:10px;">🥗</div>
+          <div style="font-weight:600;color:#6B7280;margin-bottom:4px;">Hi, I'm your SEA Nutrition Assistant</div>
+          <div style="font-size:12px;">Ask me for food &amp; diet recommendations tailored to you.</div>
         </div>""", unsafe_allow_html=True)
+
+    # ── Example question buttons ──
+    example_qs = (
+        [
+            "🍚 糖尿病适合吃什么早餐？",
+            "🥗 推荐低盐东南亚午餐",
+            "🍌 适合我的健康零食？",
+            "🚫 我应该避免哪些食物？",
+        ]
+        if st.session_state.language == "zh"
+        else [
+            "🍚 Breakfast ideas for diabetes?",
+            "🥗 Low-sodium SEA lunch ideas",
+            "🍌 Healthy SEA snacks for me?",
+            "🚫 Foods I should avoid?",
+        ]
+    )
+    eq_cols = st.columns(2)
+    for i, q in enumerate(example_qs):
+        with eq_cols[i % 2]:
+            if st.button(q, key=f"eq_{i}", use_container_width=True):
+                st.session_state.pending_question = q
+                st.rerun()
 
     st.markdown('<div style="height:6px;"></div>', unsafe_allow_html=True)
     with st.form("chat_form", clear_on_submit=True):
@@ -792,10 +828,21 @@ def page_ai_chat():
         with c2:
             send = st.form_submit_button(S("btn_submit"), use_container_width=True)
 
-    if send and user_input.strip():
-        st.session_state.chat_history.append({"role": "user", "content": user_input.strip()})
+    # Handle example button click
+    if st.session_state.get("pending_question"):
+        pq = st.session_state.pending_question
+        st.session_state.pending_question = None
+        st.session_state.chat_history.append({"role": "user", "content": pq})
         with st.spinner(S("thinking")):
-            reply = ask_ai(user_input.strip())
+            reply = ask_ai_merlion(st.session_state.chat_history[:-1], pq)
+        st.session_state.chat_history.append({"role": "assistant", "content": reply})
+        st.rerun()
+
+    if send and user_input.strip():
+        txt = user_input.strip()
+        st.session_state.chat_history.append({"role": "user", "content": txt})
+        with st.spinner(S("thinking")):
+            reply = ask_ai_merlion(st.session_state.chat_history[:-1], txt)
         st.session_state.chat_history.append({"role": "assistant", "content": reply})
         st.rerun()
 
