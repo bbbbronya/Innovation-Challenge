@@ -1,0 +1,4 @@
+med_id,user_id,name,condition,dose,frequency,schedule,instructions,active
+M001,U001,Metformin,Type 2 Diabetes,1000mg,2x daily,08:00|20:00,Take with meals to reduce stomach upset,True
+M002,U001,Lisinopril,Hypertension,10mg,1x daily,08:00,Take in the morning. May cause dizziness.,True
+M003,U001,Atorvastatin,Dyslipidemia,40mg,1x daily at night,21:00,Take in the evening. Avoid grapefruit juice.,True

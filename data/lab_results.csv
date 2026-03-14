@@ -1,0 +1,4 @@
+lab_id,user_id,test_name,value,unit,reference_range,status,tested_at
+LAB001,U001,Lipid Panel,LDL 3.8,mmol/L,< 3.4,Above Range,2025-02-28
+LAB002,U001,HbA1c,7.1,%,< 7.0,Above Range,2025-02-28
+LAB003,U001,Creatinine,82,μmol/L,45–90,On Track,2025-02-28
