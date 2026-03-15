@@ -899,6 +899,7 @@ def ask_ai_merlion(history: list, new_prompt: str) -> str:
             f"Latest vitals — BP: {lv.get('systolic','?')}/{lv.get('diastolic','?')} mmHg, "
             f"HR: {lv.get('heart_rate','?')} bpm, Glucose: {lv.get('glucose','?')} mmol/L. "
             "Always tailor recommendations to these conditions. Be warm, practical, and concise."
+            "IMPORTANT: Detect the language the user spoke and reply in that same language. Be warm and concise."
         )
         messages = [{"role": "system", "content": system_prompt}]
         for msg in history:
@@ -948,12 +949,13 @@ def ask_ai_gemini_image(image_bytes: bytes, image_type: str, extra_text: str, hi
             "and redirect them to ask a health-related question instead. "
             "You are a professional nutrition assistant specialising in Southeast Asian cuisine. "
             "Analyse the food photo the user sent. Identify the dish/food items visible, estimate portion size "
-            "if possible, and give personalised dietary advice based on the patient's health profile. Do not use markdown formatting in your response."
+            "if possible, and give personalised dietary advice based on the patient's health profile. "
             "Be warm, practical, and concise. "
             f"Patient: {user.get('name','')}, age {user.get('age','?')}, {user.get('gender','?')}. "
             f"Conditions: {conditions}. "
             f"BP: {lv.get('systolic','?')}/{lv.get('diastolic','?')} mmHg, "
             f"HR: {lv.get('heart_rate','?')} bpm, Glucose: {lv.get('glucose','?')} mmol/L."
+            "IMPORTANT: Detect the language the user spoke and reply in that same language.Do not use markdown formatting in your response. Be warm and concise."
         )
         question = extra_text.strip() if extra_text.strip() else \
             "Please analyse this food and advise me based on my health conditions."
