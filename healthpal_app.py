@@ -6,6 +6,7 @@ Providers: Anthropic (fixed) | EN / ZH toggle
 import streamlit as st
 import plotly.graph_objects as go
 from datetime import datetime
+import pandas as pd
 import os
 
 from data_layer import (
@@ -132,7 +133,7 @@ _S = {
         "settings_notif_reports": "Weekly health report",
         "settings_profile": "My Profile",
         "settings_about": "About",
-        "settings_version": "Version 1.0  ·  Powered by ",
+        "settings_version": "Version 1.0  ·  Powered by MERaLiON & Gemini",
         "ai_tab_patient": "Patient View",
         "ai_tab_doctor": "Doctor Summary",
         "ai_quick_trend": "↗ Trend Summary",
@@ -246,7 +247,7 @@ _S = {
         "settings_notif_reports": "每周健康报告",
         "settings_profile": "我的信息",
         "settings_about": "关于",
-        "settings_version": "版本 1.0  ·  由  驱动",
+        "settings_version": "版本 1.0  ·  由 MERaLiON & Gemini 驱动",
         "ai_tab_patient": "患者视图",
         "ai_tab_doctor": "医生摘要",
         "ai_quick_trend": "↗ 健康趋势",
@@ -921,6 +922,107 @@ div[data-testid="stExpander"] {
 }
 /* hide the 0-height iframe injected by components.html for JS execution */
 iframe[height="0"] { display: none !important; }
+
+/* ── Homepage: Metrics card & Med-summary card (community-style markers) ── */
+[data-testid="element-container"]:has(#hp-metrics-marker),
+[data-testid="element-container"]:has(#hp-med-summary-marker) {
+    height: 0 !important; overflow: hidden !important;
+    margin: 0 !important; padding: 0 !important;
+}
+[data-testid="element-container"]:has(#hp-metrics-marker) + [data-testid="element-container"],
+[data-testid="element-container"]:has(#hp-med-summary-marker) + [data-testid="element-container"] {
+    background: #fff !important;
+    border-radius: 20px !important;
+    margin: 0 16px 10px !important;
+    box-shadow: 0 2px 16px rgba(15,23,42,.06) !important;
+    padding: 14px 14px !important;
+}
+[data-testid="element-container"]:has(#hp-metrics-marker) + [data-testid="element-container"] [data-testid="stVerticalBlock"],
+[data-testid="element-container"]:has(#hp-med-summary-marker) + [data-testid="element-container"] [data-testid="stVerticalBlock"] {
+    gap: 4px !important;
+}
+[data-testid="element-container"]:has(#hp-metrics-marker) + [data-testid="element-container"] [data-testid="column"],
+[data-testid="element-container"]:has(#hp-med-summary-marker) + [data-testid="element-container"] [data-testid="column"] {
+    padding: 0 4px !important;
+}
+/* Add Record button: blue pill */
+[data-testid="element-container"]:has(#hp-metrics-marker) + [data-testid="element-container"]
+  div[data-testid="stButton"] > button {
+    background: #3B5BDB !important; color: #fff !important;
+    border: none !important; border-radius: 22px !important;
+    height: 34px !important; min-height: 34px !important;
+    font-size: 12px !important; font-weight: 600 !important;
+    box-shadow: 0 3px 10px rgba(59,91,219,.35) !important;
+    padding: 0 12px !important;
+}
+/* View Timeline button: light-blue pill */
+[data-testid="element-container"]:has(#hp-med-summary-marker) + [data-testid="element-container"]
+  div[data-testid="stButton"] > button {
+    background: #EEF2FF !important; color: #3B5BDB !important;
+    border: none !important; border-radius: 14px !important;
+    height: 34px !important; min-height: 34px !important;
+    font-size: 12px !important; font-weight: 600 !important;
+    box-shadow: none !important; padding: 0 10px !important;
+}
+
+/* ── Period chips (segmented control) ── */
+[data-testid="element-container"]:has(#hp-period-chips-marker) {
+    height: 0 !important; overflow: hidden !important;
+    margin: 0 !important; padding: 0 !important;
+}
+[data-testid="element-container"]:has(#hp-period-chips-marker) + [data-testid="element-container"] {
+    background: #EEF0F5 !important;
+    border-radius: 22px !important;
+    margin: 0 16px 14px !important;
+    padding: 3px !important;
+    box-shadow: none !important;
+}
+[data-testid="element-container"]:has(#hp-period-chips-marker) + [data-testid="element-container"]
+  [data-testid="stHorizontalBlock"] { gap: 0 !important; padding: 0 !important; }
+[data-testid="element-container"]:has(#hp-period-chips-marker) + [data-testid="element-container"]
+  [data-testid="column"] { padding: 0 !important; }
+[data-testid="element-container"]:has(#hp-period-chips-marker) + [data-testid="element-container"]
+  div[data-testid="stButton"] > button {
+    background: transparent !important; color: #64748B !important;
+    border: none !important; border-radius: 19px !important;
+    height: 36px !important; min-height: 36px !important;
+    font-size: 13px !important; font-weight: 500 !important;
+    box-shadow: none !important; padding: 0 !important;
+}
+[data-testid="element-container"]:has(#hp-period-chips-marker) + [data-testid="element-container"]
+  div[data-testid="stButton"] > button[kind="primary"] {
+    background: #fff !important; color: #0F172A !important;
+    font-weight: 600 !important;
+    box-shadow: 0 1px 6px rgba(0,0,0,.12) !important;
+}
+
+/* ── Metric filter chips ── */
+[data-testid="element-container"]:has(#hp-metric-chips-marker) {
+    height: 0 !important; overflow: hidden !important;
+    margin: 0 !important; padding: 0 !important;
+}
+[data-testid="element-container"]:has(#hp-metric-chips-marker) + [data-testid="element-container"] {
+    background: transparent !important;
+    margin: 0 16px 12px !important;
+    padding: 0 !important; box-shadow: none !important;
+}
+[data-testid="element-container"]:has(#hp-metric-chips-marker) + [data-testid="element-container"]
+  [data-testid="stHorizontalBlock"] { gap: 8px !important; padding: 0 !important; }
+[data-testid="element-container"]:has(#hp-metric-chips-marker) + [data-testid="element-container"]
+  [data-testid="column"] { padding: 0 !important; }
+[data-testid="element-container"]:has(#hp-metric-chips-marker) + [data-testid="element-container"]
+  div[data-testid="stButton"] > button {
+    background: #fff !important; color: #94A3B8 !important;
+    border: 1.5px solid #E2E8F0 !important; border-radius: 22px !important;
+    height: 34px !important; min-height: 34px !important;
+    font-size: 12px !important; font-weight: 600 !important;
+    box-shadow: none !important;
+}
+[data-testid="element-container"]:has(#hp-metric-chips-marker) + [data-testid="element-container"]
+  div[data-testid="stButton"] > button[kind="primary"] {
+    background: #EEF2FF !important; color: #3B5BDB !important;
+    border-color: #C7D2FE !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -1149,36 +1251,11 @@ def render_bottom_nav():
 # PAGE: HOME
 # ═══════════════════════════════════════════════════════════════════════════
 def page_home():
-    # ── Handle query param actions ──
-    qp = st.query_params
-
-    # Page navigation
-    nav = qp.get("nav")
-    if nav == "add_record":
-        _set_page_and_rerun("add_record")
-    elif nav == "meds":
-        _set_page_and_rerun("meds")
-
-    # Trend days switch
-    trend = qp.get("trend")
-    if trend in ["7", "14", "30"]:
-        st.session_state.trend_days = int(trend)
-        st.query_params.clear()
-        st.rerun()
-
-    # Trend metric switch
-    metric = qp.get("metric")
-    if metric in ["bp", "glucose"]:
-        st.session_state.home_trend_metric = metric
-        st.query_params.clear()
-        st.rerun()
-
     user = get_user()
     lv   = get_latest_vitals()
     lab  = get_lab_results()
     ms   = get_today_med_status()
 
-    # defaults (defensive)
     st.session_state.setdefault("trend_days", 7)
     st.session_state.setdefault("home_trend_metric", "glucose")
 
@@ -1203,126 +1280,171 @@ def page_home():
     lipid_date   = lipid_row["tested_at"] if lipid_row is not None else "—"
     lipid_ago    = "2 weeks ago" if lipid_date != "—" else "—"
 
-    st.markdown(f"""
-    <div class="hp-card">
-      <div class="hp-card-title">
-        {S('lbl_today_metrics')}
-        <a class="hp-add-record-btn" href="?nav=add_record">{S('btn_add_record')}</a>
-      </div>
-
-      <div class="hp-metric-row">
-        <div class="hp-icon-circle bp">❤️</div>
-        <div>
-          <p class="hp-metric-label">{S('lbl_bp')}</p>
-          <p class="hp-metric-value">
-            {lv.get('systolic','—')} / {lv.get('diastolic','—')} mmHg &nbsp;·&nbsp; {lv.get('heart_rate','—')} bpm
-          </p>
+    st.markdown('<div id="hp-metrics-marker" style="display:none"></div>', unsafe_allow_html=True)
+    with st.container():
+        _mc_title, _mc_btn = st.columns([3, 2])
+        with _mc_title:
+            st.markdown(
+                f'<p style="font-size:15px;font-weight:700;color:#0F172A;margin:6px 0 4px;">'
+                f'{S("lbl_today_metrics")}</p>',
+                unsafe_allow_html=True,
+            )
+        with _mc_btn:
+            if st.button(S("btn_add_record"), key="home_add_record", use_container_width=True):
+                st.session_state.current_page = "add_record"
+                st.rerun()
+        st.markdown(f"""
+        <div class="hp-metric-row">
+          <div class="hp-icon-circle bp">❤️</div>
+          <div>
+            <p class="hp-metric-label">{S('lbl_bp')}</p>
+            <p class="hp-metric-value">
+              {lv.get('systolic','—')} / {lv.get('diastolic','—')} mmHg &nbsp;·&nbsp; {lv.get('heart_rate','—')} bpm
+            </p>
+          </div>
         </div>
-      </div>
-
-      <div class="hp-metric-row">
-        <div class="hp-icon-circle glu">💧</div>
-        <div>
-          <p class="hp-metric-label">Fasting {S('lbl_glucose')}</p>
-          <p class="hp-metric-value">{lv.get('glucose','—')} mmol/L</p>
+        <div class="hp-metric-row">
+          <div class="hp-icon-circle glu">💧</div>
+          <div>
+            <p class="hp-metric-label">Fasting {S('lbl_glucose')}</p>
+            <p class="hp-metric-value">{lv.get('glucose','—')} mmol/L</p>
+          </div>
         </div>
-      </div>
-
-      <div class="hp-metric-row">
-        <div class="hp-icon-circle lab">⚠️</div>
-        <div style="flex:1;">
-          <p class="hp-lipid-main">{S('lbl_lipid')}: {lipid_status}</p>
-          <p class="hp-lipid-sub">{S('lbl_checked')} {lipid_ago}</p>
+        <div class="hp-metric-row">
+          <div class="hp-icon-circle lab">⚠️</div>
+          <div style="flex:1;">
+            <p class="hp-lipid-main">{S('lbl_lipid')}: {lipid_status}</p>
+            <p class="hp-lipid-sub">{S('lbl_checked')} {lipid_ago}</p>
+          </div>
         </div>
-      </div>
-    </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
 
     # ── Medication card ──
-    st.markdown(f"""
-    <div class="hp-card">
-      <div class="hp-med-summary">
-        <div class="hp-icon-circle med" style="font-size:22px;">💊</div>
-        <div class="hp-med-info">
-          <p class="mtitle"><b>{ms.get('taken', 0)} of {ms.get('total', 0)}</b> {S('lbl_meds_taken')}</p>
-          <p class="msub">{S('lbl_next_reminder')}: {ms.get('next_reminder', '—')}</p>
-        </div>
-        <a class="hp-tl-btn" href="?nav=meds">{S('lbl_view_timeline')}</a>
-      </div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown('<div id="hp-med-summary-marker" style="display:none"></div>', unsafe_allow_html=True)
+    with st.container():
+        _med_info, _med_btn = st.columns([3, 2])
+        with _med_info:
+            st.markdown(f"""
+            <div class="hp-med-summary">
+              <div class="hp-icon-circle med" style="font-size:22px;">💊</div>
+              <div class="hp-med-info">
+                <p class="mtitle"><b>{ms.get('taken', 0)} of {ms.get('total', 0)}</b> {S('lbl_meds_taken')}</p>
+                <p class="msub">{S('lbl_next_reminder')}: {ms.get('next_reminder', '—')}</p>
+              </div>
+            </div>
+            """, unsafe_allow_html=True)
+        with _med_btn:
+            if st.button(S("lbl_view_timeline"), key="home_view_tl", use_container_width=True):
+                st.session_state.current_page = "meds"
+                st.rerun()
 
     # ── Trend Overview ──
     td = st.session_state.trend_days
     active_metric = st.session_state.home_trend_metric
 
-    chip7  = "active" if td == 7 else ""
-    chip14 = "active" if td == 14 else ""
-    chip30 = "active" if td == 30 else ""
-
-    bp_active  = "active" if active_metric == "bp" else ""
-    glu_active = "active" if active_metric == "glucose" else ""
-
     st.markdown(f"""
     <div class="hp-trend-section">
       <h3 class="hp-trend-title">{S("lbl_trend")}</h3>
-
-      <div class="hp-period-row">
-        <a class="hp-period-chip {chip7}" href="?trend=7">7 Days</a>
-        <a class="hp-period-chip {chip14}" href="?trend=14">14 Days</a>
-        <a class="hp-period-chip {chip30}" href="?trend=30">30 Days</a>
-      </div>
-
-      <div class="hp-filter-row">
-        <a class="hp-filter-chip {bp_active}" href="?metric=bp">
-          <span class="hp-filter-dot" style="background:#CBD5E1;"></span>{S('lbl_bp')}
-        </a>
-        <a class="hp-filter-chip {glu_active}" href="?metric=glucose">
-          <span class="hp-filter-dot" style="background:#8B5CF6;"></span>{S('lbl_glucose')}
-        </a>
-      </div>
     </div>
     """, unsafe_allow_html=True)
 
+    # Period chips
+    st.markdown('<div id="hp-period-chips-marker" style="display:none"></div>', unsafe_allow_html=True)
+    with st.container():
+        _p1, _p2, _p3 = st.columns(3)
+        with _p1:
+            if st.button("7 Days", key="period_7",
+                         type="primary" if td == 7 else "secondary",
+                         use_container_width=True):
+                st.session_state.trend_days = 7
+                st.rerun()
+        with _p2:
+            if st.button("14 Days", key="period_14",
+                         type="primary" if td == 14 else "secondary",
+                         use_container_width=True):
+                st.session_state.trend_days = 14
+                st.rerun()
+        with _p3:
+            if st.button("30 Days", key="period_30",
+                         type="primary" if td == 30 else "secondary",
+                         use_container_width=True):
+                st.session_state.trend_days = 30
+                st.rerun()
+
+    # Metric filter chips
+    st.markdown('<div id="hp-metric-chips-marker" style="display:none"></div>', unsafe_allow_html=True)
+    with st.container():
+        _m1, _m2 = st.columns(2)
+        with _m1:
+            if st.button(
+                f"● {S('lbl_bp')}", key="metric_bp",
+                type="primary" if active_metric == "bp" else "secondary",
+                use_container_width=True,
+            ):
+                st.session_state.home_trend_metric = "bp"
+                st.rerun()
+        with _m2:
+            if st.button(
+                f"● {S('lbl_glucose')}", key="metric_glu",
+                type="primary" if active_metric == "glucose" else "secondary",
+                use_container_width=True,
+            ):
+                st.session_state.home_trend_metric = "glucose"
+                st.rerun()
+
     # ── Chart ──
-    df = get_vitals(days=td)
-    if not df.empty:
+    # Always load full 30-day history; aggregate to one point per day.
+    # xaxis.range pins the visible window to the last `td` days;
+    # dragmode="pan" lets the user drag left to scroll back in time.
+    df_raw = get_vitals(days=30)
+    if not df_raw.empty:
+        df_raw["date"] = df_raw["timestamp"].dt.normalize()
+        df_daily = (
+            df_raw.groupby("date")
+            .agg(systolic=("systolic", "mean"),
+                 diastolic=("diastolic", "mean"),
+                 glucose=("glucose", "mean"))
+            .reset_index()
+            .sort_values("date")
+        )
+
+        max_date   = df_daily["date"].max()
+        min_vis    = max_date - pd.Timedelta(days=td - 1)
+        half_day   = pd.Timedelta(hours=12)
+
         fig = go.Figure()
 
         if active_metric == "bp":
             fig.add_trace(go.Scatter(
-                x=df["timestamp"],
-                y=df["systolic"],
-                mode="lines+markers",
-                name=S("lbl_bp"),
-                line=dict(color="#CBD5E1", width=2.2),
-                marker=dict(size=5, color="#CBD5E1"),
+                x=df_daily["date"], y=df_daily["diastolic"].round(0),
+                mode="lines+markers", name="Diastolic",
+                line=dict(color="#93C5FD", width=2.0),
+                marker=dict(size=4, color="#93C5FD"),
             ))
-            y_min = max(80, int(df["systolic"].min()) - 8)
-            y_max = min(200, int(df["systolic"].max()) + 8)
-            y_range = [y_min, y_max]
-            y_ticks = None
+            fig.add_trace(go.Scatter(
+                x=df_daily["date"], y=df_daily["systolic"].round(0),
+                mode="lines+markers", name="Systolic",
+                line=dict(color="#3B82F6", width=2.4),
+                marker=dict(size=5, color="#3B82F6"),
+                fill="tonexty", fillcolor="rgba(219,234,254,0.30)",
+            ))
+            y_range = [55, 165]
+            y_ticks = [60, 85, 110, 135, 160]
         else:
             fig.add_trace(go.Scatter(
-                x=df["timestamp"],
-                y=df["glucose"],
-                mode="lines+markers",
-                name=S("lbl_glucose"),
+                x=df_daily["date"], y=df_daily["glucose"].round(1),
+                mode="lines+markers", name=S("lbl_glucose"),
                 line=dict(color="#8B5CF6", width=2.5),
                 marker=dict(size=6, color="#8B5CF6", line=dict(color="#fff", width=1.5)),
-                fill="tozeroy",
-                fillcolor="rgba(251,207,232,0.25)",
+                fill="tozeroy", fillcolor="rgba(251,207,232,0.25)",
             ))
             fig.add_hrect(y0=4.0, y1=7.0, fillcolor="rgba(254,249,195,0.25)", line_width=0)
             y_range = [3, 10]
             y_ticks = [3, 5, 7, 9, 10]
 
-        if td <= 7:
-            xfmt, dtick = "%a", None
-        elif td <= 14:
-            xfmt, dtick = "%d/%m", None
-        else:
-            xfmt, dtick = "W%W", 7 * 24 * 3600 * 1000
+        # Tick density: always ~7 labels regardless of window
+        dtick_days = max(1, td // 7)
+        xfmt = "%a" if td <= 7 else "%b %d"
 
         fig.update_layout(
             height=210,
@@ -1330,22 +1452,25 @@ def page_home():
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
             showlegend=False,
+            dragmode="pan",
             xaxis=dict(
                 showgrid=False,
                 tickformat=xfmt,
-                dtick=dtick,
+                dtick=dtick_days * 24 * 3600 * 1000,
                 tickfont=dict(size=10, color="#94A3B8"),
+                range=[min_vis - half_day, max_date + half_day],
+                fixedrange=False,
             ),
             yaxis=dict(
-                showgrid=True,
-                gridcolor="#F1F5F9",
+                showgrid=True, gridcolor="#F1F5F9",
                 tickfont=dict(size=10, color="#94A3B8"),
-                range=y_range,
-                tickvals=y_ticks,
+                range=y_range, tickvals=y_ticks,
+                fixedrange=True,
             ),
         )
 
-        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+        st.plotly_chart(fig, use_container_width=True,
+                        config={"displayModeBar": False, "scrollZoom": False})
 
     st.markdown(f"""
     <div style="padding: 0 16px;">
