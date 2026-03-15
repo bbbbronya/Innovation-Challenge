@@ -1,0 +1,4 @@
+medication_id,user_id,medication_name,dosage,time_of_day,frequency_days,start_date,notes
+M001,U001,Metformin,1000mg,08:00,1,2025-01-01,Take with meals to reduce stomach upset
+M001,U001,Metformin,1000mg,20:00,1,2025-01-01,Take with meals to reduce stomach upset
+M003,U001,Atorvastatin,40mg,21:00,1,2025-01-01,Take in the evening. Avoid grapefruit juice.

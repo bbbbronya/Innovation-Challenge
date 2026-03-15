@@ -14,6 +14,9 @@ from data_layer import (
     get_medications, get_today_med_status, get_lab_results,
     add_vitals_record, log_medication,
     get_community_posts, like_post, add_community_post,
+    add_medication_record, delete_medication,
+    get_due_medications, get_next_medication, get_todays_medications,
+    load_medications, mark_medication_as_taken,
 )
 
 st.set_page_config(
@@ -71,6 +74,37 @@ _S = {
         "lbl_meds_title": "Your Medications",
         "lbl_condition": "Condition", "lbl_frequency": "Frequency", "lbl_instructions": "Instructions",
         "btn_log_taken": "Mark Taken",
+        "med_add_title": "Add Medication",
+        "med_name": "Medication Name *",
+        "med_dosage_opt": "Dosage (optional)",
+        "med_notes_opt": "Notes (optional)",
+        "med_time_of_day": "Time of Day",
+        "med_frequency_days": "Frequency (days)",
+        "med_start_date": "Start Date",
+        "med_save": "Save Medication",
+        "med_saved": "Medication saved successfully.",
+        "med_today_title": "Today's Medications",
+        "med_none_today": "No medications scheduled for today.",
+        "med_badge_taken": "Taken",
+        "med_badge_pending": "Pending",
+        "med_mark_taken": "Mark as Taken",
+        "med_taken_ok": "Medication marked as taken.",
+        "med_due_now": "Due Now",
+        "med_due_none": "No medications due at the current time.",
+        "med_next_title": "Next Reminder",
+        "med_next_none": "No upcoming medication reminder found.",
+        "med_all_title": "All Medications",
+        "med_all_none": "No medication records yet.",
+        "med_delete": "Delete",
+        "med_every_days": "Every",
+        "med_day_unit": "day(s)",
+        "med_starting": "starting",
+        "med_status": "Status",
+        "med_due_at": "Due at",
+        "med_at": "At",
+        "med_scheduled_for": "Scheduled for",
+        "med_time": "Time",
+        "med_start_date_lbl": "Start Date",
         "title_ai": "HealthPal AI",
         "user_input": "Ask HealthPal AI...", "btn_submit": "Send",
         "thinking": "Thinking…",
@@ -154,6 +188,37 @@ _S = {
         "lbl_meds_title": "您的药物",
         "lbl_condition": "适应症", "lbl_frequency": "频率", "lbl_instructions": "用药说明",
         "btn_log_taken": "标记已服",
+        "med_add_title": "新增用药",
+        "med_name": "药物名称 *",
+        "med_dosage_opt": "剂量（可选）",
+        "med_notes_opt": "备注（可选）",
+        "med_time_of_day": "服药时间",
+        "med_frequency_days": "频率（天）",
+        "med_start_date": "开始日期",
+        "med_save": "保存用药",
+        "med_saved": "用药已保存。",
+        "med_today_title": "今日用药",
+        "med_none_today": "今天没有需要服用的药物。",
+        "med_badge_taken": "已服",
+        "med_badge_pending": "待服",
+        "med_mark_taken": "标记已服",
+        "med_taken_ok": "已标记为服用。",
+        "med_due_now": "当前到点",
+        "med_due_none": "当前没有到点药物。",
+        "med_next_title": "下次提醒",
+        "med_next_none": "未找到后续用药提醒。",
+        "med_all_title": "全部用药",
+        "med_all_none": "暂无用药记录。",
+        "med_delete": "删除",
+        "med_every_days": "每",
+        "med_day_unit": "天",
+        "med_starting": "起",
+        "med_status": "状态",
+        "med_due_at": "到点时间",
+        "med_at": "时间",
+        "med_scheduled_for": "计划日期",
+        "med_time": "时间",
+        "med_start_date_lbl": "开始日期",
         "title_ai": "健康宝 AI",
         "user_input": "问健康宝 AI...", "btn_submit": "发送",
         "thinking": "思考中…",
@@ -228,6 +293,7 @@ defaults = {
     "chat_history": [],
     "current_page": "home",
     "trend_days": 7,
+    "home_trend_metric": "glucose",
     "notif_meds": True,
     "notif_reports": False,
     "pending_question": None,
@@ -254,6 +320,12 @@ def S(key: str) -> str:
 def greet() -> str:
     h = datetime.now().hour
     return S("greet_morning") if h < 12 else S("greet_afternoon") if h < 18 else S("greet_evening")
+
+
+def _set_page_and_rerun(target_page: str):
+    st.session_state.current_page = target_page
+    st.query_params.clear()
+    st.rerun()
 
 # ═══════════════════════════════════════════════════════════════════════════
 # GLOBAL CSS
@@ -434,6 +506,44 @@ html, body, [data-testid="stAppViewContainer"] {
     border: none; border-radius: 14px; padding: 8px 14px;
     font-size: 12px; font-weight: 600; cursor: pointer;
     white-space: nowrap; flex-shrink: 0;
+    display: inline-flex; align-items: center;
+    text-decoration: none;
+}
+
+/* ── meds page ── */
+.hp-med-card {
+    background: #fff; border-radius: 16px;
+    padding: 14px 16px; margin: 8px 0;
+    border: 1px solid #EEF2F7;
+    box-shadow: 0 1px 10px rgba(15,23,42,.05);
+}
+.hp-med-name { font-size: 14px; font-weight: 700; color: #0F172A; margin: 0; }
+.hp-med-sub { font-size: 12px; color: #64748B; margin: 4px 0 0; }
+.hp-med-notes { font-size: 12px; color: #475569; margin: 7px 0 0; }
+.hp-med-badge {
+    display: inline-block; margin-top: 8px; padding: 4px 10px;
+    border-radius: 999px; font-size: 11px; font-weight: 700;
+}
+.hp-med-badge.taken { background: #DCFCE7; color: #166534; }
+.hp-med-badge.pending { background: #FEF3C7; color: #92400E; }
+
+/* medication section container markers */
+[data-testid="element-container"]:has(#hp-med-add-marker),
+[data-testid="element-container"]:has(#hp-med-due-marker),
+[data-testid="element-container"]:has(#hp-med-next-marker),
+[data-testid="element-container"]:has(#hp-med-all-marker) {
+    height: 0 !important; overflow: hidden !important;
+    margin: 0 !important; padding: 0 !important;
+}
+[data-testid="element-container"]:has(#hp-med-add-marker) + [data-testid="element-container"],
+[data-testid="element-container"]:has(#hp-med-due-marker) + [data-testid="element-container"],
+[data-testid="element-container"]:has(#hp-med-next-marker) + [data-testid="element-container"],
+[data-testid="element-container"]:has(#hp-med-all-marker) + [data-testid="element-container"] {
+    background: #fff !important;
+    border-radius: 20px !important;
+    margin: 0 16px 10px !important;
+    box-shadow: 0 2px 16px rgba(15,23,42,.06) !important;
+    padding: 14px 14px !important;
 }
 
 /* ── trend SECTION (no card wrapper) ── */
@@ -446,6 +556,7 @@ html, body, [data-testid="stAppViewContainer"] {
     flex: 1; text-align: center; padding: 7px 0; border-radius: 19px;
     border: none; font-size: 13px; font-weight: 500; cursor: pointer;
     color: #64748B; background: transparent; transition: all .15s;
+    text-decoration: none;
 }
 .hp-period-chip.active {
     background: #fff; color: #0F172A; font-weight: 600;
@@ -460,10 +571,13 @@ html, body, [data-testid="stAppViewContainer"] {
     font-size: 12px; font-weight: 600; color: #94A3B8; background: #fff;
     cursor: pointer;
 }
-/* Blood Pressure inactive */
-.hp-filter-chip.bp-chip { border-color: #E2E8F0; color: #94A3B8; }
-/* Blood Glucose active – purple */
-.hp-filter-chip.glu-chip {
+/* Dynamic filter active states */
+.hp-filter-chip.bp-chip,
+.hp-filter-chip.glu-chip { border-color: #E2E8F0; color: #94A3B8; }
+.hp-filter-chip.bp-chip.active {
+    border-color: #CBD5E1; color: #475569; background: #F8FAFC;
+}
+.hp-filter-chip.glu-chip.active {
     border-color: #8B5CF6; color: #7C3AED; background: #F5F3FF;
 }
 .hp-filter-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
@@ -1035,39 +1149,77 @@ def render_bottom_nav():
 # PAGE: HOME
 # ═══════════════════════════════════════════════════════════════════════════
 def page_home():
+    # ── Handle query param actions ──
+    qp = st.query_params
+
+    # Page navigation
+    nav = qp.get("nav")
+    if nav == "add_record":
+        _set_page_and_rerun("add_record")
+    elif nav == "meds":
+        _set_page_and_rerun("meds")
+
+    # Trend days switch
+    trend = qp.get("trend")
+    if trend in ["7", "14", "30"]:
+        st.session_state.trend_days = int(trend)
+        st.query_params.clear()
+        st.rerun()
+
+    # Trend metric switch
+    metric = qp.get("metric")
+    if metric in ["bp", "glucose"]:
+        st.session_state.home_trend_metric = metric
+        st.query_params.clear()
+        st.rerun()
+
     user = get_user()
     lv   = get_latest_vitals()
     lab  = get_lab_results()
     ms   = get_today_med_status()
 
+    # defaults (defensive)
+    st.session_state.setdefault("trend_days", 7)
+    st.session_state.setdefault("home_trend_metric", "glucose")
+
     # ── Header ──
     st.markdown(f"""
     <div class="hp-header">
-      <div><h2>{greet()}, {user.get('name','')}</h2><p>{S('subtitle')}</p></div>
+      <div>
+        <h2>{greet()}, {user.get('name','')}</h2>
+        <p>{S('subtitle')}</p>
+      </div>
       <div class="hp-avatar">👩</div>
-    </div>""", unsafe_allow_html=True)
+    </div>
+    """, unsafe_allow_html=True)
 
-    # ── Today's Health Metrics card (Add Record button inside header row) ──
-    lipid_row    = lab[lab["test_name"] == "Lipid Panel"].iloc[0] if not lab.empty and "Lipid Panel" in lab["test_name"].values else None
-    lipid_status = lipid_row["status"]    if lipid_row is not None else "On Track"
+    # ── Today's Health Metrics card ──
+    lipid_row = (
+        lab[lab["test_name"] == "Lipid Panel"].iloc[0]
+        if not lab.empty and "Lipid Panel" in lab["test_name"].values
+        else None
+    )
+    lipid_status = lipid_row["status"] if lipid_row is not None else "On Track"
     lipid_date   = lipid_row["tested_at"] if lipid_row is not None else "—"
-    badge_cls    = "badge-above" if lipid_status == "Above Range" else "badge-ok"
-    # "2 weeks ago" display
-    lipid_ago = "2 weeks ago" if lipid_date != "—" else "—"
+    lipid_ago    = "2 weeks ago" if lipid_date != "—" else "—"
 
     st.markdown(f"""
     <div class="hp-card">
       <div class="hp-card-title">
         {S('lbl_today_metrics')}
-        <button class="hp-add-record-btn" id="hp-add-record-trigger">{S('btn_add_record')}</button>
+        <a class="hp-add-record-btn" href="?nav=add_record">{S('btn_add_record')}</a>
       </div>
+
       <div class="hp-metric-row">
         <div class="hp-icon-circle bp">❤️</div>
         <div>
           <p class="hp-metric-label">{S('lbl_bp')}</p>
-          <p class="hp-metric-value">{lv.get('systolic','—')} / {lv.get('diastolic','—')} mmHg &nbsp;·&nbsp; {lv.get('heart_rate','—')} bpm</p>
+          <p class="hp-metric-value">
+            {lv.get('systolic','—')} / {lv.get('diastolic','—')} mmHg &nbsp;·&nbsp; {lv.get('heart_rate','—')} bpm
+          </p>
         </div>
       </div>
+
       <div class="hp-metric-row">
         <div class="hp-icon-circle glu">💧</div>
         <div>
@@ -1075,6 +1227,7 @@ def page_home():
           <p class="hp-metric-value">{lv.get('glucose','—')} mmol/L</p>
         </div>
       </div>
+
       <div class="hp-metric-row">
         <div class="hp-icon-circle lab">⚠️</div>
         <div style="flex:1;">
@@ -1082,13 +1235,8 @@ def page_home():
           <p class="hp-lipid-sub">{S('lbl_checked')} {lipid_ago}</p>
         </div>
       </div>
-    </div>""", unsafe_allow_html=True)
-
-    # Functional hidden Add Record button (triggered by the HTML button above via JS)
-    if st.button(S("btn_add_record"), key="add_record_btn",
-                 help="add_record_trigger"):
-        st.session_state.current_page = "add_record"
-        st.rerun()
+    </div>
+    """, unsafe_allow_html=True)
 
     # ── Medication card ──
     st.markdown(f"""
@@ -1096,103 +1244,118 @@ def page_home():
       <div class="hp-med-summary">
         <div class="hp-icon-circle med" style="font-size:22px;">💊</div>
         <div class="hp-med-info">
-          <p class="mtitle"><b>{ms['taken']} of {ms['total']}</b> {S('lbl_meds_taken')}</p>
-          <p class="msub">{S('lbl_next_reminder')}: {ms['next_reminder']}</p>
+          <p class="mtitle"><b>{ms.get('taken', 0)} of {ms.get('total', 0)}</b> {S('lbl_meds_taken')}</p>
+          <p class="msub">{S('lbl_next_reminder')}: {ms.get('next_reminder', '—')}</p>
         </div>
-        <button class="hp-tl-btn" onclick="void(0)">{S('lbl_view_timeline')}</button>
+        <a class="hp-tl-btn" href="?nav=meds">{S('lbl_view_timeline')}</a>
       </div>
-    </div>""", unsafe_allow_html=True)
+    </div>
+    """, unsafe_allow_html=True)
 
-    # ── Trend Overview – section style (no card wrapper, per Figma) ──
+    # ── Trend Overview ──
     td = st.session_state.trend_days
-    # Period chip row (HTML visual) + hidden Streamlit buttons
-    chip7  = "active" if td == 7  else ""
+    active_metric = st.session_state.home_trend_metric
+
+    chip7  = "active" if td == 7 else ""
     chip14 = "active" if td == 14 else ""
     chip30 = "active" if td == 30 else ""
+
+    bp_active  = "active" if active_metric == "bp" else ""
+    glu_active = "active" if active_metric == "glucose" else ""
+
     st.markdown(f"""
     <div class="hp-trend-section">
       <h3 class="hp-trend-title">{S("lbl_trend")}</h3>
+
       <div class="hp-period-row">
-        <button class="hp-period-chip {chip7}"  onclick="void(0)">7 Days</button>
-        <button class="hp-period-chip {chip14}" onclick="void(0)">14 Days</button>
-        <button class="hp-period-chip {chip30}" onclick="void(0)">30 Days</button>
+        <a class="hp-period-chip {chip7}" href="?trend=7">7 Days</a>
+        <a class="hp-period-chip {chip14}" href="?trend=14">14 Days</a>
+        <a class="hp-period-chip {chip30}" href="?trend=30">30 Days</a>
       </div>
-    </div>""", unsafe_allow_html=True)
 
-    # Functional period buttons (hidden below, same :has() trick can't be used here
-    # so just render them small — Streamlit needs them for interaction)
-    c1, c2, c3 = st.columns(3)
-    for col, (lbl, d) in zip([c1, c2, c3], [("7 Days", 7), ("14 Days", 14), ("30 Days", 30)]):
-        with col:
-            if st.button(lbl, key=f"trend_{d}", use_container_width=True):
-                st.session_state.trend_days = d
-                st.rerun()
-
-    # Filter chips: Blood Glucose active (matches Figma screenshot)
-    st.markdown(f"""
-    <div style="padding: 4px 16px 0;">
-    <div class="hp-filter-row">
-      <div class="hp-filter-chip bp-chip">
-        <span class="hp-filter-dot" style="background:#CBD5E1;"></span>{S('lbl_bp')}
+      <div class="hp-filter-row">
+        <a class="hp-filter-chip {bp_active}" href="?metric=bp">
+          <span class="hp-filter-dot" style="background:#CBD5E1;"></span>{S('lbl_bp')}
+        </a>
+        <a class="hp-filter-chip {glu_active}" href="?metric=glucose">
+          <span class="hp-filter-dot" style="background:#8B5CF6;"></span>{S('lbl_glucose')}
+        </a>
       </div>
-      <div class="hp-filter-chip glu-chip">
-        <span class="hp-filter-dot" style="background:#8B5CF6;"></span>{S('lbl_glucose')}
-      </div>
-    </div></div>""", unsafe_allow_html=True)
+    </div>
+    """, unsafe_allow_html=True)
 
-    # Chart – glucose as primary (purple fill), BP as secondary (grey dashed)
-    df = get_vitals(days=st.session_state.trend_days)
+    # ── Chart ──
+    df = get_vitals(days=td)
     if not df.empty:
         fig = go.Figure()
-        # BP: scaled to glucose range (÷20 maps 80-160 → 4-8)
-        fig.add_trace(go.Scatter(
-            x=df["timestamp"], y=df["systolic"] / 20,
-            mode="lines+markers", name=S("lbl_bp"),
-            line=dict(color="#CBD5E1", width=1.8, dash="dot"),
-            marker=dict(size=4, color="#CBD5E1"),
-        ))
-        # Glucose: primary, purple, filled area
-        fig.add_trace(go.Scatter(
-            x=df["timestamp"], y=df["glucose"],
-            mode="lines+markers", name=S("lbl_glucose"),
-            line=dict(color="#8B5CF6", width=2.5),
-            marker=dict(size=6, color="#8B5CF6", line=dict(color="#fff", width=1.5)),
-            fill="tozeroy",
-            fillcolor="rgba(251,207,232,0.25)",
-        ))
-        # Normal glucose band shading
-        fig.add_hrect(y0=4.0, y1=7.0, fillcolor="rgba(254,249,195,0.25)", line_width=0)
-        # Choose x-axis tick format based on period
+
+        if active_metric == "bp":
+            fig.add_trace(go.Scatter(
+                x=df["timestamp"],
+                y=df["systolic"],
+                mode="lines+markers",
+                name=S("lbl_bp"),
+                line=dict(color="#CBD5E1", width=2.2),
+                marker=dict(size=5, color="#CBD5E1"),
+            ))
+            y_min = max(80, int(df["systolic"].min()) - 8)
+            y_max = min(200, int(df["systolic"].max()) + 8)
+            y_range = [y_min, y_max]
+            y_ticks = None
+        else:
+            fig.add_trace(go.Scatter(
+                x=df["timestamp"],
+                y=df["glucose"],
+                mode="lines+markers",
+                name=S("lbl_glucose"),
+                line=dict(color="#8B5CF6", width=2.5),
+                marker=dict(size=6, color="#8B5CF6", line=dict(color="#fff", width=1.5)),
+                fill="tozeroy",
+                fillcolor="rgba(251,207,232,0.25)",
+            ))
+            fig.add_hrect(y0=4.0, y1=7.0, fillcolor="rgba(254,249,195,0.25)", line_width=0)
+            y_range = [3, 10]
+            y_ticks = [3, 5, 7, 9, 10]
+
         if td <= 7:
             xfmt, dtick = "%a", None
         elif td <= 14:
             xfmt, dtick = "%d/%m", None
         else:
-            xfmt, dtick = "W%W", 7 * 24 * 3600 * 1000  # weekly
+            xfmt, dtick = "W%W", 7 * 24 * 3600 * 1000
+
         fig.update_layout(
-            height=210, margin=dict(l=8, r=8, t=8, b=30),
-            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+            height=210,
+            margin=dict(l=8, r=8, t=8, b=30),
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
             showlegend=False,
             xaxis=dict(
-                showgrid=False, tickformat=xfmt,
+                showgrid=False,
+                tickformat=xfmt,
                 dtick=dtick,
                 tickfont=dict(size=10, color="#94A3B8"),
             ),
             yaxis=dict(
-                showgrid=True, gridcolor="#F1F5F9",
+                showgrid=True,
+                gridcolor="#F1F5F9",
                 tickfont=dict(size=10, color="#94A3B8"),
-                range=[3, 10], tickvals=[3, 5, 7, 9, 10],
+                range=y_range,
+                tickvals=y_ticks,
             ),
         )
+
         st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
 
     st.markdown(f"""
     <div style="padding: 0 16px;">
-    <div class="hp-legend">
-      <span><span class="hp-dot" style="background:#4ADE80;"></span>{S('lbl_on_track')}</span>
-      <span><span class="hp-dot" style="background:#FBBF24;"></span>{S('lbl_above_range')}</span>
-      <span><span class="hp-dot" style="background:#F87171;"></span>{S('lbl_high_risk')}</span>
-    </div></div>""", unsafe_allow_html=True)
+      <div class="hp-legend">
+        <span><span class="hp-dot" style="background:#4ADE80;"></span>{S('lbl_on_track')}</span>
+        <span><span class="hp-dot" style="background:#FBBF24;"></span>{S('lbl_above_range')}</span>
+        <span><span class="hp-dot" style="background:#F87171;"></span>{S('lbl_high_risk')}</span>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
 
     # ── AI insight strip ──
     st.markdown("""
@@ -1201,32 +1364,43 @@ def page_home():
       <p style="margin:0;font-size:13px;color:#0F172A;flex:1;line-height:1.6;">
         Your glucose is <b>in range</b> today. Keep it up!
       </p>
-    </div>""", unsafe_allow_html=True)
+    </div>
+    """, unsafe_allow_html=True)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
 # PAGE: ADD RECORD
 # ═══════════════════════════════════════════════════════════════════════════
 def page_add_record():
-    st.markdown(f'<div class="hp-page-title">← {S("lbl_add_vitals")}</div>', unsafe_allow_html=True)
-    if st.button("← Back", key="back_btn"):
-        st.session_state.current_page = "home"
-        st.rerun()
+    st.markdown(f'<div class="hp-page-title">{S("lbl_add_vitals")}</div>', unsafe_allow_html=True)
+
+    st.markdown(f"""
+    <div style="margin-bottom:12px;">
+      <a class="hp-back-btn" href="?nav=home">← Back</a>
+    </div>
+    """, unsafe_allow_html=True)
+
+    if st.query_params.get("nav") == "home":
+        _set_page_and_rerun("home")
+
     st.markdown('<div style="height:8px;"></div>', unsafe_allow_html=True)
+
     with st.form("add_vitals_form"):
         c1, c2 = st.columns(2)
+
         with c1:
             sys_v = st.number_input(S("lbl_systolic"), 80, 200, 120)
             hr_v  = st.number_input(S("lbl_hr"), 40, 180, 72)
+
         with c2:
             dia_v = st.number_input(S("lbl_diastolic"), 40, 130, 80)
             glu_v = st.number_input(S("lbl_glucose_val"), 2.0, 20.0, 5.4, step=0.1)
+
         if st.form_submit_button(S("btn_save"), use_container_width=True):
             if add_vitals_record("U001", sys_v, dia_v, hr_v, glu_v):
                 st.success(S("msg_saved"))
                 st.session_state.current_page = "home"
                 st.rerun()
-
 
 # ═══════════════════════════════════════════════════════════════════════════
 # PAGE: MEDICATIONS
@@ -1245,19 +1419,171 @@ def page_medications():
       </div>
     </div>""", unsafe_allow_html=True)
 
-    meds = get_medications()
-    if meds.empty:
-        st.info("No medications found.")
-        return
-    for _, med in meds.iterrows():
-        with st.expander(f"💊 **{med['name']}** — {med['dose']}"):
-            st.markdown(f"**{S('lbl_condition')}:** {med['condition']}")
-            st.markdown(f"**{S('lbl_frequency')}:** {med['frequency']}")
-            st.markdown(f"**{S('lbl_instructions')}:** {med['instructions']}")
-            if st.button(S("btn_log_taken"), key=f"log_{med['med_id']}"):
-                log_medication("U001", med["med_id"], "taken")
-                st.success(S("msg_saved"))
-                st.rerun()
+    # ── Add Medication ──
+    st.markdown('<div id="hp-med-add-marker"></div>', unsafe_allow_html=True)
+    with st.container():
+        st.markdown(f'<div class="hp-card-title" style="margin-bottom:8px;">➕ {S("med_add_title")}</div>', unsafe_allow_html=True)
+        with st.form("add_medication_form", clear_on_submit=True):
+            med_name = st.text_input(S("med_name"))
+            dosage = st.text_input(S("med_dosage_opt"))
+            notes = st.text_area(S("med_notes_opt"), height=80)
+
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                time_of_day = st.time_input(S("med_time_of_day"), value=datetime.strptime("08:00", "%H:%M").time())
+            with c2:
+                frequency_days = st.number_input(S("med_frequency_days"), min_value=1, value=1, step=1)
+            with c3:
+                start_date = st.date_input(S("med_start_date"))
+
+            submitted = st.form_submit_button(S("med_save"), use_container_width=True)
+            if submitted:
+                try:
+                    add_medication_record(
+                        medication_name=med_name,
+                        dosage=dosage,
+                        time_of_day=time_of_day.strftime("%H:%M"),
+                        frequency_days=int(frequency_days),
+                        start_date=start_date.strftime("%Y-%m-%d"),
+                        notes=notes,
+                    )
+                    st.success(S("med_saved"))
+                    st.rerun()
+                except ValueError as e:
+                    st.error(str(e))
+
+    # ── Today's Medications ──
+    st.markdown(f'<div style="padding:6px 16px 2px;font-size:15px;font-weight:700;color:#0F172A;">{S("med_today_title")}</div>', unsafe_allow_html=True)
+    today_records = get_todays_medications()
+    if not today_records:
+        st.info(S("med_none_today"))
+    else:
+        for item in today_records:
+            left, right = st.columns([4, 2])
+            dosage_text = f" · {item['dosage']}" if item.get("dosage") else ""
+            notes_text = f"<div class='hp-med-notes'>{item['notes']}</div>" if item.get("notes") else ""
+            badge_html = (
+                f"<div class='hp-med-badge taken'>{S('med_badge_taken')}</div>"
+                if item.get("taken")
+                else f"<div class='hp-med-badge pending'>{S('med_badge_pending')}</div>"
+            )
+            with left:
+                st.markdown(
+                    f"""
+                    <div class="hp-med-card">
+                      <p class="hp-med-name">{item['time_of_day']} — {item['medication_name']}{dosage_text}</p>
+                                            <p class="hp-med-sub">{S('med_every_days')} {item['frequency_days']} {S('med_day_unit')}, {S('med_starting')} {item['start_date']}</p>
+                      {notes_text}
+                      {badge_html}
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+            with right:
+                st.markdown('<div style="height:8px"></div>', unsafe_allow_html=True)
+                if not item.get("taken"):
+                    if st.button(
+                        S("med_mark_taken"),
+                        key=f"taken_{item['medication_id']}_{item['scheduled_date']}_{item['time_of_day']}",
+                        use_container_width=True,
+                    ):
+                        ok, message = mark_medication_as_taken(
+                            medication_id=item["medication_id"],
+                            scheduled_date=item["scheduled_date"],
+                            scheduled_time=item["time_of_day"],
+                        )
+                        if ok:
+                            st.success(message or S("med_taken_ok"))
+                        else:
+                            st.info(message)
+                        st.rerun()
+                else:
+                    st.button(
+                        S("med_badge_taken"),
+                        key=f"taken_done_{item['medication_id']}_{item['scheduled_date']}_{item['time_of_day']}",
+                        use_container_width=True,
+                        disabled=True,
+                    )
+
+    # ── Due Now + Next Reminder ──
+    st.markdown('<div style="height:6px"></div>', unsafe_allow_html=True)
+    col_due, col_next = st.columns(2)
+    with col_due:
+        st.markdown('<div id="hp-med-due-marker"></div>', unsafe_allow_html=True)
+        with st.container():
+            st.markdown(f'<div class="hp-card-title" style="margin-bottom:8px;">{S("med_due_now")}</div>', unsafe_allow_html=True)
+            due_now = get_due_medications()
+            if not due_now:
+                st.caption(S("med_due_none"))
+            else:
+                for item in due_now:
+                    dosage_text = f" · {item['dosage']}" if item.get("dosage") else ""
+                    status_text = S("med_badge_taken") if item.get("taken") else S("med_badge_pending")
+                    st.markdown(
+                        f"""
+                        <div class="hp-med-card">
+                          <p class="hp-med-name">{item['medication_name']}{dosage_text}</p>
+                          <p class="hp-med-sub">{S('med_due_at')} {item['time_of_day']}</p>
+                          <p class="hp-med-sub">{S('med_status')}: {status_text}</p>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+    with col_next:
+        st.markdown('<div id="hp-med-next-marker"></div>', unsafe_allow_html=True)
+        with st.container():
+            st.markdown(f'<div class="hp-card-title" style="margin-bottom:8px;">{S("med_next_title")}</div>', unsafe_allow_html=True)
+            next_item = get_next_medication()
+            if not next_item:
+                st.caption(S("med_next_none"))
+            else:
+                dosage_text = f" · {next_item['dosage']}" if next_item.get("dosage") else ""
+                st.markdown(
+                    f"""
+                    <div class="hp-med-card">
+                      <p class="hp-med-name">{next_item['medication_name']}{dosage_text}</p>
+                      <p class="hp-med-sub">{S('med_at')} {next_item['time_of_day']}</p>
+                      <p class="hp-med-sub">{S('med_scheduled_for')} {next_item['scheduled_date']}</p>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+
+    # ── All Medications ──
+    st.markdown('<div id="hp-med-all-marker"></div>', unsafe_allow_html=True)
+    with st.container():
+        st.markdown(f'<div class="hp-card-title" style="margin-bottom:8px;">{S("med_all_title")}</div>', unsafe_allow_html=True)
+        all_records = load_medications()
+        if not all_records:
+            st.info(S("med_all_none"))
+        else:
+            for idx, row in enumerate(all_records):
+                dosage_text = f" · {row['dosage']}" if row.get("dosage") else ""
+                notes_text = f"<div class='hp-med-notes'>{row['notes']}</div>" if row.get("notes") else ""
+                left, right = st.columns([5, 1])
+                with left:
+                    st.markdown(
+                        f"""
+                        <div class="hp-med-card">
+                          <p class="hp-med-name">{row['medication_name']}{dosage_text}</p>
+                          <p class="hp-med-sub">{S('med_time')}: {row['time_of_day']}</p>
+                          <p class="hp-med-sub">{S('med_every_days')} {row['frequency_days']} {S('med_day_unit')}</p>
+                          <p class="hp-med-sub">{S('med_start_date_lbl')}: {row['start_date']}</p>
+                          {notes_text}
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+                with right:
+                    st.markdown('<div style="height:8px"></div>', unsafe_allow_html=True)
+                    delete_key = f"delete_{row['medication_id']}_{row.get('time_of_day','')}_{idx}"
+                    if st.button(S("med_delete"), key=delete_key, use_container_width=True):
+                        ok, message = delete_medication(row["medication_id"])
+                        if ok:
+                            st.success(message)
+                        else:
+                            st.error(message)
+                        st.rerun()
 
 
 # ═══════════════════════════════════════════════════════════════════════════

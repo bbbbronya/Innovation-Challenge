@@ -19,8 +19,30 @@ import os
 import pandas as pd
 from datetime import datetime, timedelta
 import random
+from typing import Optional
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+MEDICATION_PLAN_FILE = "medication_plan.csv"
+MEDICATION_PLAN_COLUMNS = [
+    "medication_id",
+    "user_id",
+    "medication_name",
+    "dosage",
+    "time_of_day",
+    "frequency_days",
+    "start_date",
+    "notes",
+]
+MEDICATION_LOG_FILE = "medication_logs.csv"
+MEDICATION_LOG_COLUMNS = [
+    "log_id",
+    "user_id",
+    "medication_id",
+    "scheduled_date",
+    "scheduled_time",
+    "status",
+    "logged_at",
+]
 
 # ── internal helpers ──────────────────────────────────────────────────────────
 
@@ -33,6 +55,123 @@ def _read(filename: str) -> pd.DataFrame:
 def _write(filename: str, df: pd.DataFrame):
     os.makedirs(DATA_DIR, exist_ok=True)
     df.to_csv(_path(filename), index=False)
+
+
+def _generate_next_id(prefix: str, existing_ids: list[str], width: int = 4) -> str:
+    max_num = 0
+    for item_id in existing_ids:
+        if not isinstance(item_id, str) or not item_id.startswith(prefix):
+            continue
+        try:
+            max_num = max(max_num, int(item_id[len(prefix):]))
+        except Exception:
+            continue
+    return f"{prefix}{max_num + 1:0{width}d}"
+
+
+def _normalize_medication_plan_df(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty:
+        return pd.DataFrame(columns=MEDICATION_PLAN_COLUMNS)
+    out = df.copy()
+    if "medication_id" not in out.columns and "med_id" in out.columns:
+        out["medication_id"] = out["med_id"]
+    if "medication_name" not in out.columns and "name" in out.columns:
+        out["medication_name"] = out["name"]
+    if "dosage" not in out.columns and "dose" in out.columns:
+        out["dosage"] = out["dose"]
+    if "time_of_day" not in out.columns:
+        if "schedule" in out.columns:
+            out["time_of_day"] = out["schedule"].astype(str).str.split("|").str[0].fillna("08:00")
+        else:
+            out["time_of_day"] = "08:00"
+    if "frequency_days" not in out.columns:
+        out["frequency_days"] = 1
+    if "start_date" not in out.columns:
+        out["start_date"] = datetime.now().strftime("%Y-%m-%d")
+    if "notes" not in out.columns:
+        out["notes"] = ""
+    if "user_id" not in out.columns:
+        out["user_id"] = "U001"
+
+    out = out[MEDICATION_PLAN_COLUMNS].copy()
+    out["medication_id"] = out["medication_id"].astype(str).str.strip()
+    out["user_id"] = out["user_id"].astype(str).str.strip().replace("", "U001")
+    out["medication_name"] = out["medication_name"].astype(str).str.strip()
+    out["dosage"] = out["dosage"].astype(str).str.strip()
+    out["time_of_day"] = out["time_of_day"].astype(str).str.strip().replace("", "08:00")
+    out["frequency_days"] = pd.to_numeric(out["frequency_days"], errors="coerce").fillna(1).astype(int).clip(lower=1)
+    out["start_date"] = out["start_date"].astype(str).str.strip().replace("", datetime.now().strftime("%Y-%m-%d"))
+    out["notes"] = out["notes"].astype(str).str.strip()
+    out = out[out["medication_name"] != ""].reset_index(drop=True)
+    return out
+
+
+def _normalize_medication_logs_df(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty:
+        return pd.DataFrame(columns=MEDICATION_LOG_COLUMNS)
+    out = df.copy()
+    if "medication_id" not in out.columns and "med_id" in out.columns:
+        out["medication_id"] = out["med_id"]
+    if "scheduled_date" not in out.columns and "scheduled_at" in out.columns:
+        dt = pd.to_datetime(out["scheduled_at"], errors="coerce")
+        out["scheduled_date"] = dt.dt.strftime("%Y-%m-%d").fillna("")
+    if "scheduled_time" not in out.columns and "scheduled_at" in out.columns:
+        dt = pd.to_datetime(out["scheduled_at"], errors="coerce")
+        out["scheduled_time"] = dt.dt.strftime("%H:%M").fillna("")
+    if "user_id" not in out.columns:
+        out["user_id"] = "U001"
+    if "status" not in out.columns:
+        out["status"] = "taken"
+    if "logged_at" not in out.columns:
+        out["logged_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    if "log_id" not in out.columns:
+        out["log_id"] = [f"L{i+1:04d}" for i in range(len(out))]
+
+    out = out[MEDICATION_LOG_COLUMNS].copy()
+    out["log_id"] = out["log_id"].astype(str).str.strip()
+    out["user_id"] = out["user_id"].astype(str).str.strip().replace("", "U001")
+    out["medication_id"] = out["medication_id"].astype(str).str.strip()
+    out["scheduled_date"] = out["scheduled_date"].astype(str).str.strip()
+    out["scheduled_time"] = out["scheduled_time"].astype(str).str.strip()
+    out["status"] = out["status"].astype(str).str.strip().replace("", "taken")
+    out["logged_at"] = out["logged_at"].astype(str).str.strip()
+    out = out[(out["medication_id"] != "") & (out["scheduled_date"] != "") & (out["scheduled_time"] != "")].reset_index(drop=True)
+    return out
+
+
+def _ensure_medication_plan_and_logs():
+    plan_path = _path(MEDICATION_PLAN_FILE)
+    logs_path = _path(MEDICATION_LOG_FILE)
+
+    if os.path.exists(plan_path):
+        plan_df = _normalize_medication_plan_df(_read(MEDICATION_PLAN_FILE))
+    else:
+        legacy = _read("medications.csv")
+        rows = []
+        if not legacy.empty:
+            for _, med in legacy.iterrows():
+                schedules = str(med.get("schedule", "08:00")).split("|")
+                for t in schedules:
+                    tm = str(t).strip() or "08:00"
+                    rows.append({
+                        "medication_id": str(med.get("med_id", "")).strip(),
+                        "user_id": str(med.get("user_id", "U001")).strip() or "U001",
+                        "medication_name": str(med.get("name", "")).strip(),
+                        "dosage": str(med.get("dose", "")).strip(),
+                        "time_of_day": tm,
+                        "frequency_days": 1,
+                        "start_date": "2025-01-01",
+                        "notes": str(med.get("instructions", "")).strip(),
+                    })
+        plan_df = _normalize_medication_plan_df(pd.DataFrame(rows))
+    _write(MEDICATION_PLAN_FILE, plan_df)
+
+    if os.path.exists(logs_path):
+        logs_df = _normalize_medication_logs_df(_read(MEDICATION_LOG_FILE))
+    else:
+        legacy_logs = _read("med_logs.csv")
+        logs_df = _normalize_medication_logs_df(legacy_logs)
+    _write(MEDICATION_LOG_FILE, logs_df)
 
 
 # ── seed functions ────────────────────────────────────────────────────────────
@@ -157,6 +296,7 @@ def ensure_data_exists():
     ]:
         if not os.path.exists(_path(filename)):
             seeder()
+    _ensure_medication_plan_and_logs()
 
 
 # ── PUBLIC API  ───────────────────────────────────────────────────────────────
@@ -215,6 +355,26 @@ def get_medications(user_id: str = "U001", active_only: bool = True) -> pd.DataF
     return df.reset_index(drop=True)
 
 def get_today_med_status(user_id: str = "U001") -> dict:
+    plan = _read(MEDICATION_PLAN_FILE)
+    logs_new = _read(MEDICATION_LOG_FILE)
+    if not plan.empty:
+        today_items = get_todays_medications(user_id=user_id)
+        taken = int(sum(1 for item in today_items if item.get("taken")))
+        total = len(today_items)
+        next_item = get_next_medication(user_id=user_id)
+        next_reminder = f"{next_item['scheduled_date']} {next_item['time_of_day']}" if next_item else "All done!"
+        return {"taken": taken, "total": total, "next_reminder": next_reminder}
+
+    if not logs_new.empty:
+        logs_new["scheduled_date"] = pd.to_datetime(logs_new["scheduled_date"], errors="coerce")
+        today = datetime.now().date()
+        today_logs = logs_new[(logs_new["user_id"] == user_id) & (logs_new["scheduled_date"].dt.date == today)]
+        taken = int((today_logs["status"] == "taken").sum())
+        total = len(today_logs)
+        pending = today_logs[today_logs["status"] != "taken"]
+        next_reminder = pending["scheduled_time"].min() if not pending.empty else "All done!"
+        return {"taken": taken, "total": total, "next_reminder": next_reminder}
+
     logs = _read("med_logs.csv")
     if logs.empty:
         return {"taken": 0, "total": 0, "next_reminder": "--"}
@@ -285,6 +445,19 @@ def add_vitals_record(user_id: str, systolic: int, diastolic: int,
 
 def log_medication(user_id: str, med_id: str, status: str = "taken") -> bool:
     try:
+        plan = _read(MEDICATION_PLAN_FILE)
+        if not plan.empty:
+            med_row = plan[(plan["user_id"] == user_id) & (plan["medication_id"] == med_id)]
+            if not med_row.empty:
+                scheduled_time = str(med_row.iloc[0].get("time_of_day", datetime.now().strftime("%H:%M")))
+                ok, _ = mark_medication_as_taken(
+                    medication_id=med_id,
+                    scheduled_date=datetime.now().strftime("%Y-%m-%d"),
+                    scheduled_time=scheduled_time,
+                    user_id=user_id,
+                )
+                return ok
+
         df = _read("med_logs.csv")
         new_id = f"L{len(df)+1:04d}" if not df.empty else "L0001"
         now = datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -296,3 +469,252 @@ def log_medication(user_id: str, med_id: str, status: str = "taken") -> bool:
         return True
     except Exception:
         return False
+
+
+def load_medications(user_id: str = "U001") -> list[dict]:
+    df = _read(MEDICATION_PLAN_FILE)
+    if df.empty:
+        return []
+    df = _normalize_medication_plan_df(df)
+    df = df[df["user_id"] == user_id].copy()
+    df = df.sort_values(["time_of_day", "medication_name"]).reset_index(drop=True)
+    return df.to_dict("records")
+
+
+def load_medication_logs(user_id: str = "U001") -> list[dict]:
+    df = _read(MEDICATION_LOG_FILE)
+    if df.empty:
+        return []
+    df = _normalize_medication_logs_df(df)
+    return df[df["user_id"] == user_id].to_dict("records")
+
+
+def add_medication_record(
+    medication_name: str,
+    dosage: str = "",
+    time_of_day: str = "08:00",
+    frequency_days: int = 1,
+    start_date: str = "",
+    notes: str = "",
+    user_id: str = "U001",
+) -> dict:
+    initialize_date = start_date.strip() if isinstance(start_date, str) else ""
+    if not medication_name or not medication_name.strip():
+        raise ValueError("medication_name is required")
+    try:
+        datetime.strptime(time_of_day, "%H:%M")
+    except ValueError:
+        raise ValueError("time_of_day must follow HH:MM format, e.g. 08:00")
+    try:
+        frequency_days = int(frequency_days)
+    except (TypeError, ValueError):
+        raise ValueError("frequency_days must be a positive integer")
+    if frequency_days <= 0:
+        raise ValueError("frequency_days must be a positive integer")
+    if not initialize_date:
+        initialize_date = datetime.now().strftime("%Y-%m-%d")
+    try:
+        datetime.strptime(initialize_date, "%Y-%m-%d")
+    except ValueError:
+        raise ValueError("start_date must follow YYYY-MM-DD format, e.g. 2026-03-15")
+
+    planner_df = _normalize_medication_plan_df(_read(MEDICATION_PLAN_FILE))
+    existing_ids = planner_df["medication_id"].tolist() if not planner_df.empty else []
+    med_id = _generate_next_id("M", existing_ids)
+    new_row = pd.DataFrame([{
+        "medication_id": med_id,
+        "user_id": user_id,
+        "medication_name": medication_name.strip(),
+        "dosage": (dosage or "").strip(),
+        "time_of_day": time_of_day,
+        "frequency_days": frequency_days,
+        "start_date": initialize_date,
+        "notes": (notes or "").strip(),
+    }])
+    planner_df = pd.concat([planner_df, new_row], ignore_index=True)
+    _write(MEDICATION_PLAN_FILE, _normalize_medication_plan_df(planner_df))
+
+    legacy_df = _read("medications.csv")
+    if legacy_df.empty:
+        legacy_df = pd.DataFrame(columns=["med_id", "user_id", "name", "condition", "dose", "frequency", "schedule", "instructions", "active"])
+    legacy_row = pd.DataFrame([{
+        "med_id": med_id,
+        "user_id": user_id,
+        "name": medication_name.strip(),
+        "condition": "General",
+        "dose": (dosage or "").strip(),
+        "frequency": f"Every {frequency_days} day(s)",
+        "schedule": time_of_day,
+        "instructions": (notes or "").strip(),
+        "active": True,
+    }])
+    _write("medications.csv", pd.concat([legacy_df, legacy_row], ignore_index=True))
+
+    return new_row.iloc[0].to_dict()
+
+
+def delete_medication(medication_id: str, user_id: str = "U001") -> tuple[bool, str]:
+    planner_df = _normalize_medication_plan_df(_read(MEDICATION_PLAN_FILE))
+    before = len(planner_df)
+    planner_df = planner_df[~((planner_df["medication_id"] == medication_id) & (planner_df["user_id"] == user_id))].reset_index(drop=True)
+    if len(planner_df) == before:
+        return False, "Medication not found."
+    _write(MEDICATION_PLAN_FILE, planner_df)
+
+    log_df = _normalize_medication_logs_df(_read(MEDICATION_LOG_FILE))
+    if not log_df.empty:
+        log_df = log_df[~((log_df["medication_id"] == medication_id) & (log_df["user_id"] == user_id))].reset_index(drop=True)
+        _write(MEDICATION_LOG_FILE, log_df)
+
+    legacy_df = _read("medications.csv")
+    if not legacy_df.empty and "med_id" in legacy_df.columns:
+        legacy_df = legacy_df[~((legacy_df["med_id"] == medication_id) & (legacy_df["user_id"] == user_id))].reset_index(drop=True)
+        _write("medications.csv", legacy_df)
+
+    return True, "Medication deleted successfully."
+
+
+def is_taken_for_schedule(
+    medication_id: str,
+    scheduled_date: str,
+    scheduled_time: str,
+    user_id: str = "U001",
+) -> bool:
+    logs_df = _normalize_medication_logs_df(_read(MEDICATION_LOG_FILE))
+    if logs_df.empty:
+        return False
+    hit = logs_df[
+        (logs_df["user_id"] == user_id)
+        & (logs_df["medication_id"] == medication_id)
+        & (logs_df["scheduled_date"] == scheduled_date)
+        & (logs_df["scheduled_time"] == scheduled_time)
+        & (logs_df["status"] == "taken")
+    ]
+    return not hit.empty
+
+
+def mark_medication_as_taken(
+    medication_id: str,
+    scheduled_date: str,
+    scheduled_time: str,
+    user_id: str = "U001",
+) -> tuple[bool, str]:
+    if is_taken_for_schedule(medication_id, scheduled_date, scheduled_time, user_id=user_id):
+        return False, "This medication is already marked as taken."
+
+    logs_df = _normalize_medication_logs_df(_read(MEDICATION_LOG_FILE))
+    existing_ids = logs_df["log_id"].tolist() if not logs_df.empty else []
+    log_id = _generate_next_id("L", existing_ids)
+    new_row = pd.DataFrame([{
+        "log_id": log_id,
+        "user_id": user_id,
+        "medication_id": medication_id,
+        "scheduled_date": scheduled_date,
+        "scheduled_time": scheduled_time,
+        "status": "taken",
+        "logged_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    }])
+    logs_df = pd.concat([logs_df, new_row], ignore_index=True)
+    _write(MEDICATION_LOG_FILE, _normalize_medication_logs_df(logs_df))
+    return True, "Medication marked as taken."
+
+
+def _is_due_on_date(record: dict, target_date: datetime.date) -> bool:
+    try:
+        start = datetime.strptime(str(record.get("start_date", "")), "%Y-%m-%d").date()
+        freq = max(1, int(record.get("frequency_days", 1)))
+    except Exception:
+        return False
+    if target_date < start:
+        return False
+    return (target_date - start).days % freq == 0
+
+
+def get_todays_medications(user_id: str = "U001", current_date=None) -> list[dict]:
+    target_date = current_date if current_date is not None else datetime.now().date()
+    if isinstance(target_date, str):
+        target_date = datetime.strptime(target_date, "%Y-%m-%d").date()
+    scheduled_date = target_date.strftime("%Y-%m-%d")
+
+    rows = []
+    for record in load_medications(user_id=user_id):
+        if _is_due_on_date(record, target_date):
+            item = dict(record)
+            item["scheduled_date"] = scheduled_date
+            item["taken"] = is_taken_for_schedule(
+                medication_id=item["medication_id"],
+                scheduled_date=scheduled_date,
+                scheduled_time=item["time_of_day"],
+                user_id=user_id,
+            )
+            rows.append(item)
+    rows.sort(key=lambda x: x.get("time_of_day", ""))
+    return rows
+
+
+def get_due_medications(user_id: str = "U001", current_date=None, current_time=None) -> list[dict]:
+    target_date = current_date if current_date is not None else datetime.now().date()
+    if isinstance(target_date, str):
+        target_date = datetime.strptime(target_date, "%Y-%m-%d").date()
+    if current_time is None:
+        target_time = datetime.now().strftime("%H:%M")
+    else:
+        target_time = current_time.strftime("%H:%M") if hasattr(current_time, "strftime") else str(current_time)
+    scheduled_date = target_date.strftime("%Y-%m-%d")
+
+    due_rows = []
+    for record in load_medications(user_id=user_id):
+        if _is_due_on_date(record, target_date) and str(record.get("time_of_day", "")) == target_time:
+            item = dict(record)
+            item["scheduled_date"] = scheduled_date
+            item["taken"] = is_taken_for_schedule(
+                medication_id=item["medication_id"],
+                scheduled_date=scheduled_date,
+                scheduled_time=item["time_of_day"],
+                user_id=user_id,
+            )
+            due_rows.append(item)
+    due_rows.sort(key=lambda x: x.get("time_of_day", ""))
+    return due_rows
+
+
+def get_next_medication(user_id: str = "U001", current_date=None, current_time=None) -> Optional[dict]:
+    target_date = current_date if current_date is not None else datetime.now().date()
+    if isinstance(target_date, str):
+        target_date = datetime.strptime(target_date, "%Y-%m-%d").date()
+
+    if current_time is None:
+        now_dt = datetime.now()
+    elif hasattr(current_time, "hour"):
+        now_dt = datetime.combine(target_date, current_time)
+    else:
+        parsed = datetime.strptime(str(current_time), "%H:%M").time()
+        now_dt = datetime.combine(target_date, parsed)
+
+    records = load_medications(user_id=user_id)
+    for day_offset in range(0, 8):
+        candidate_date = target_date + timedelta(days=day_offset)
+        scheduled_date = candidate_date.strftime("%Y-%m-%d")
+        candidates = []
+        for record in records:
+            if not _is_due_on_date(record, candidate_date):
+                continue
+            try:
+                tm = datetime.strptime(str(record.get("time_of_day", "")), "%H:%M").time()
+                scheduled_dt = datetime.combine(candidate_date, tm)
+            except Exception:
+                continue
+            if scheduled_dt >= now_dt:
+                item = dict(record)
+                item["scheduled_date"] = scheduled_date
+                item["taken"] = is_taken_for_schedule(
+                    medication_id=item["medication_id"],
+                    scheduled_date=scheduled_date,
+                    scheduled_time=item["time_of_day"],
+                    user_id=user_id,
+                )
+                candidates.append((scheduled_dt, item))
+        if candidates:
+            candidates.sort(key=lambda x: x[0])
+            return candidates[0][1]
+    return None
