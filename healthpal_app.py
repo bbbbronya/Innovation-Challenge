@@ -104,7 +104,7 @@ _S = {
         "ai_quick_trend": "↗ Trend Summary",
         "ai_quick_meds": "💊 Medication Advice",
         "ai_quick_diet": "🥗 Diet Advice",
-        "ai_quick_food": "🍎 Food Check",
+        "ai_quick_food": "📷 Food Analysis",
         "ai_greeting_body": "I'm your personal health assistant. I can review your trends, analyze meals, or help with medications. How can I support your wellness today?",
         "ai_doc_generate": "Generate Clinical Summary",
         "ai_doc_generating": "Generating summary…",
@@ -187,7 +187,7 @@ _S = {
         "ai_quick_trend": "↗ 健康趋势",
         "ai_quick_meds": "💊 用药建议",
         "ai_quick_diet": "🥗 饮食建议",
-        "ai_quick_food": "🍎 食物检查",
+        "ai_quick_food": "📷 食物分析",
         "ai_greeting_body": "我是您的个人健康助手，可以为您分析健康趋势、饮食和用药情况。今天有什么需要帮助的吗？",
         "ai_doc_generate": "生成临床摘要",
         "ai_doc_generating": "正在生成摘要…",
@@ -241,6 +241,8 @@ defaults = {
     "comm_last_checkin": None,
     "comm_wellness_pts": 1250,
     "comm_show_posts": False,
+    "chat_input_key": 0,
+    "show_food_uploader": False,
 }
 for k, v in defaults.items():
     if k not in st.session_state:
@@ -824,6 +826,9 @@ def ask_ai_merlion_audio(audio_bytes: bytes, history: list) -> tuple[str, str]:
         lv = get_latest_vitals()
         conditions = ", ".join(user.get("conditions", []))
         system_prompt = (
+            "You ONLY answer questions related to healthcare, health, nutrition, medications, medical conditions, "
+            "and general wellness. If the user asks about anything unrelated to health topics, politely decline "
+            "and redirect them to ask a health-related question instead. "
             "You are a professional personal nutrition assistant specialising in Southeast Asian cuisine. "
             "The user sent a voice message — understand their spoken question and respond with personalised "
             "food and diet recommendations using SEA dishes (Malaysian, Singaporean, Indonesian, Thai, etc.). "
@@ -882,6 +887,9 @@ def ask_ai_merlion(history: list, new_prompt: str) -> str:
         lv = get_latest_vitals()
         conditions = ", ".join(user.get("conditions", []))
         system_prompt = (
+            "You ONLY answer questions related to healthcare, health, nutrition, medications, medical conditions, "
+            "and general wellness. If the user asks about anything unrelated to health topics, politely decline "
+            "and redirect them to ask a health-related question instead. "
             "You are a professional personal nutrition assistant specialising in Southeast Asian cuisine "
             "and dietary habits. You give personalised food and meal recommendations using dishes from "
             "Malaysia, Singapore, Indonesia, Thailand, Vietnam, the Philippines, and neighbouring SEA countries. "
@@ -904,6 +912,63 @@ def ask_ai_merlion(history: list, new_prompt: str) -> str:
         return response.choices[0].message.content
     except Exception as e:
         return f"Error: {e}"
+
+
+def _preprocess_image(image_bytes: bytes) -> tuple[bytes, str]:
+    """Resize and compress image to ≤800px / JPEG q70 to keep API payload small."""
+    from PIL import Image
+    import io
+    img = Image.open(io.BytesIO(image_bytes))
+    if img.mode != "RGB":
+        img = img.convert("RGB")
+    w, h = img.size
+    if max(w, h) > 800:
+        ratio = 800 / max(w, h)
+        img = img.resize((int(w * ratio), int(h * ratio)), Image.LANCZOS)
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=70, optimize=True)
+    return buf.getvalue(), "jpeg"
+
+
+def ask_ai_gemini_image(image_bytes: bytes, image_type: str, extra_text: str, history: list) -> str:
+    """Analyse a food photo via Gemini 2.5 Flash Lite (google-genai SDK)."""
+    key = get_secret("gemini_API_KEY")
+    if not key:
+        return "⚠️ gemini_API_KEY not configured in secrets.toml"
+    try:
+        from google import genai
+        from google.genai import types
+        client = genai.Client(api_key=key)
+        user = get_user()
+        lv = get_latest_vitals()
+        conditions = ", ".join(user.get("conditions", []))
+        system_text = (
+            "You ONLY answer questions related to healthcare, health, nutrition, medications, medical conditions, "
+            "and general wellness. If the user asks about anything unrelated to health topics, politely decline "
+            "and redirect them to ask a health-related question instead. "
+            "You are a professional nutrition assistant specialising in Southeast Asian cuisine. "
+            "Analyse the food photo the user sent. Identify the dish/food items visible, estimate portion size "
+            "if possible, and give personalised dietary advice based on the patient's health profile. Do not use markdown formatting in your response."
+            "Be warm, practical, and concise. "
+            f"Patient: {user.get('name','')}, age {user.get('age','?')}, {user.get('gender','?')}. "
+            f"Conditions: {conditions}. "
+            f"BP: {lv.get('systolic','?')}/{lv.get('diastolic','?')} mmHg, "
+            f"HR: {lv.get('heart_rate','?')} bpm, Glucose: {lv.get('glucose','?')} mmol/L."
+        )
+        question = extra_text.strip() if extra_text.strip() else \
+            "Please analyse this food and advise me based on my health conditions."
+        response = client.models.generate_content(
+            model="gemini-2.5-flash-lite",
+            config=types.GenerateContentConfig(system_instruction=system_text),
+            contents=[
+                types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg"),
+                question,
+            ],
+        )
+        return response.text
+    except Exception as e:
+        return f"Error analysing image: {e}"
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # BOTTOM NAV  – single st.columns row, fixed via CSS :has() marker
@@ -1254,29 +1319,26 @@ def _ai_patient_view(user: dict):
         for msg in st.session_state.chat_history:
             cls = "hp-bubble-user" if msg["role"] == "user" else "hp-bubble-ai"
             txt = msg["content"].replace("\n", "<br>")
-            msgs_html += f'<div class="{cls}">{txt}</div>'
+            if "image_b64" in msg:
+                img_tag = (f'<img src="data:{msg["image_mime"]};base64,{msg["image_b64"]}" '
+                           f'style="max-width:100%;border-radius:10px;margin-bottom:6px;display:block;">')
+                msgs_html += f'<div class="{cls}">{img_tag}{txt}</div>'
+            else:
+                msgs_html += f'<div class="{cls}">{txt}</div>'
         msgs_html += '</div>'
         st.markdown(msgs_html, unsafe_allow_html=True)
     else:
-        if st.session_state.audio_mode:
-            st.markdown("""
-            <div class="hp-chat-empty">
-              <div style="font-size:44px;margin-bottom:10px;">🎤</div>
-              <div style="font-weight:600;color:#6B7280;margin-bottom:4px;">Speak in your language</div>
-              <div style="font-size:12px;">Malay · Indonesian · Thai · Vietnamese · Tamil · English · 中文</div>
-            </div>""", unsafe_allow_html=True)
-        else:
-            st.markdown(f"""
-            <div class="hp-ai-greeting">
-              <div class="hp-ai-avatar">✨</div>
-              <div class="hp-ai-greeting-text">
-                <p class="greet-name">Hello {user.get('name', '')}! 👋</p>
-                <p class="greet-body">{S('ai_greeting_body')}</p>
-              </div>
-            </div>""", unsafe_allow_html=True)
+        st.markdown(f"""
+        <div class="hp-ai-greeting">
+          <div class="hp-ai-avatar">✨</div>
+          <div class="hp-ai-greeting-text">
+            <p class="greet-name">Hello {user.get('name', '')}! 👋</p>
+            <p class="greet-body">{S('ai_greeting_body')}</p>
+          </div>
+        </div>""", unsafe_allow_html=True)
 
     # ── Quick action chips (2×2 grid) ──
-    if not st.session_state.audio_mode:
+    if True:
         if st.session_state.language == "zh":
             quick_actions = [
                 (S("ai_quick_trend"),
@@ -1300,58 +1362,98 @@ def _ai_patient_view(user: dict):
                  "What foods should I avoid and what should I eat more of given my conditions?"),
             ]
         qa_cols = st.columns(2)
-        for i, (label, prompt) in enumerate(quick_actions):
+        # First 3 chips: text quick actions; 4th chip: photo upload trigger
+        text_actions = quick_actions[:-1]
+        for i, (label, prompt) in enumerate(text_actions):
             with qa_cols[i % 2]:
                 if st.button(label, key=f"qa_{i}", use_container_width=True):
                     st.session_state.pending_question = prompt
                     st.rerun()
+        with qa_cols[1]:
+            photo_label = quick_actions[-1][0]
+            photo_active = st.session_state.show_food_uploader
+            if st.button(photo_label, key="qa_photo", use_container_width=True,
+                         type="primary" if photo_active else "secondary"):
+                st.session_state.show_food_uploader = not photo_active
+                st.rerun()
 
-    # ── Controls row: voice toggle + clear ──
-    v1, v2 = st.columns([3, 1])
-    with v1:
-        voice_label = "🎤 Voice" if not st.session_state.audio_mode else "⌨️ Text"
-        if st.button(voice_label, key="toggle_audio", use_container_width=True,
-                     type="primary" if st.session_state.audio_mode else "secondary"):
-            st.session_state.audio_mode = not st.session_state.audio_mode
-            st.rerun()
-    with v2:
-        if st.button(S("ai_clear"), key="clear_chat", use_container_width=True):
-            st.session_state.chat_history = []
+    # ── Food photo uploader (revealed when chip is active) ──
+    uploaded_img = None
+    if st.session_state.show_food_uploader:
+        uploaded_img = st.file_uploader(
+            "Upload a food photo", type=["jpg", "jpeg", "png"],
+            key="food_photo", label_visibility="collapsed")
+        # Auto-analyse as soon as a file is selected
+        if uploaded_img is not None:
+            import base64 as _b64
+            raw_bytes = uploaded_img.read()
+            img_bytes, _ = _preprocess_image(raw_bytes)
+            st.session_state.show_food_uploader = False
+            st.session_state.chat_history.append({
+                "role": "user",
+                "content": "📷 Food photo",
+                "image_b64": _b64.b64encode(img_bytes).decode(),
+                "image_mime": "image/jpeg",
+            })
+            with st.spinner(S("thinking")):
+                reply = ask_ai_gemini_image(
+                    img_bytes, "jpeg",
+                    "Is this food suitable for my health conditions? Please analyse it.",
+                    st.session_state.chat_history[:-1],
+                )
+            st.session_state.chat_history.append({"role": "assistant", "content": reply})
             st.rerun()
 
     st.markdown('<div style="height:4px;"></div>', unsafe_allow_html=True)
 
-    # ── Input area ──
+    # ── Text + voice input row ──
+    c1, c2, c3 = st.columns([5, 1, 1])
+    with c1:
+        user_input = st.text_input(
+            "msg", key=f"chat_text_{st.session_state.chat_input_key}",
+            label_visibility="collapsed", placeholder=S("user_input"))
+    with c2:
+        mic_icon = "⏹" if st.session_state.audio_mode else "🎤"
+        if st.button(mic_icon, key="toggle_mic", use_container_width=True,
+                     type="primary" if st.session_state.audio_mode else "secondary"):
+            st.session_state.audio_mode = not st.session_state.audio_mode
+            st.rerun()
+    with c3:
+        send_clicked = st.button(S("btn_submit"), key="send_btn",
+                                  use_container_width=True, type="primary")
+
+    # Clear button
+    if st.button(S("ai_clear"), key="clear_chat", use_container_width=True):
+        st.session_state.chat_history = []
+        st.rerun()
+
+    # ── Voice recording (shown when audio mode active) ──
     if st.session_state.audio_mode:
-        st.markdown("""
-        <div style="padding:4px 4px 2px;font-size:12px;color:#6B7280;">
-        🌏 Speak Malay, Indonesian, Thai, Vietnamese, Tamil, English, or 中文
-        </div>""", unsafe_allow_html=True)
-        audio_val = st.audio_input("Record your question", key="voice_input", label_visibility="collapsed")
-        if audio_val is not None:
+        st.markdown('<div style="font-size:12px;color:#6B7280;margin-top:4px;">🌏 Malay · Indonesian · Thai · Vietnamese · Tamil · English · 中文</div>',
+                    unsafe_allow_html=True)
+        audio_val = st.audio_input("Record", key="voice_input", label_visibility="collapsed")
+    else:
+        audio_val = None
+
+    # ── Handle send (text / voice only) ──
+    if send_clicked:
+        if audio_val is not None and st.session_state.audio_mode:
             audio_bytes = audio_val.read()
-            if audio_bytes and st.button("📤 Send voice message", key="send_audio",
-                                         use_container_width=True, type="primary"):
+            if audio_bytes:
                 with st.spinner(S("thinking")):
                     transcription, reply = ask_ai_merlion_audio(audio_bytes, st.session_state.chat_history)
                 st.session_state.chat_history.append({"role": "user", "content": transcription})
                 st.session_state.chat_history.append({"role": "assistant", "content": reply})
                 st.rerun()
-    else:
-        with st.form("chat_form", clear_on_submit=True):
-            c1, c2 = st.columns([5, 1])
-            with c1:
-                user_input = st.text_input(
-                    "msg", label_visibility="collapsed", placeholder=S("user_input"))
-            with c2:
-                send = st.form_submit_button(S("btn_submit"), use_container_width=True)
-        if send and user_input.strip():
+        else:
             txt = user_input.strip()
-            st.session_state.chat_history.append({"role": "user", "content": txt})
-            with st.spinner(S("thinking")):
-                reply = ask_ai_merlion(st.session_state.chat_history[:-1], txt)
-            st.session_state.chat_history.append({"role": "assistant", "content": reply})
-            st.rerun()
+            if txt:
+                st.session_state.chat_history.append({"role": "user", "content": txt})
+                with st.spinner(S("thinking")):
+                    reply = ask_ai_merlion(st.session_state.chat_history[:-1], txt)
+                st.session_state.chat_history.append({"role": "assistant", "content": reply})
+                st.session_state.chat_input_key += 1
+                st.rerun()
 
     # Handle quick-action / pending question
     if st.session_state.get("pending_question"):
