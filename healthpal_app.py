@@ -99,6 +99,41 @@ _S = {
         "settings_profile": "My Profile",
         "settings_about": "About",
         "settings_version": "Version 1.0  ·  Powered by ",
+        "ai_tab_patient": "Patient View",
+        "ai_tab_doctor": "Doctor Summary",
+        "ai_quick_trend": "↗ Trend Summary",
+        "ai_quick_meds": "💊 Medication Advice",
+        "ai_quick_diet": "🥗 Diet Advice",
+        "ai_quick_food": "🍎 Food Check",
+        "ai_greeting_body": "I'm your personal health assistant. I can review your trends, analyze meals, or help with medications. How can I support your wellness today?",
+        "ai_doc_generate": "Generate Clinical Summary",
+        "ai_doc_generating": "Generating summary…",
+        "ai_doc_overview": "Patient Overview",
+        "ai_doc_vitals": "Current Vitals",
+        "ai_doc_meds": "Medications",
+        "ai_doc_summary_title": "AI Clinical Summary",
+        "ai_clear": "🗑 Clear",
+        "comm_title": "Community & Rewards",
+        "comm_subtitle": "Stay motivated and connected",
+        "comm_checkin_title": "Daily Check-in",
+        "comm_checkin_streak": "day streak",
+        "comm_checkin_btn": "Check In",
+        "comm_checkin_done": "Checked In ✓",
+        "comm_achievement_title": "Recent Achievement",
+        "comm_achievement_name": "Perfect Routine",
+        "comm_achievement_desc": "On-time medication for 12 consecutive days. Great consistency!",
+        "comm_points_title": "Wellness Points",
+        "comm_reward_report": "Digital Health Report",
+        "comm_reward_dietitian": "Dietitian 1-on-1 Q&A",
+        "comm_redeem": "Redeem",
+        "comm_redeem_ok": "Redeemed! 🎉",
+        "comm_redeem_insufficient": "Not enough points",
+        "comm_patient_title": "Patient Community",
+        "comm_patient_desc": "Share diet tips, daily habits, and encourage others on the same journey.",
+        "comm_tag_diet": "Diet Tips",
+        "comm_tag_support": "Support",
+        "comm_view_posts": "View Posts",
+        "comm_back": "← Back",
     },
     "zh": {
         "app_name": "健康宝",
@@ -147,6 +182,41 @@ _S = {
         "settings_profile": "我的信息",
         "settings_about": "关于",
         "settings_version": "版本 1.0  ·  由  驱动",
+        "ai_tab_patient": "患者视图",
+        "ai_tab_doctor": "医生摘要",
+        "ai_quick_trend": "↗ 健康趋势",
+        "ai_quick_meds": "💊 用药建议",
+        "ai_quick_diet": "🥗 饮食建议",
+        "ai_quick_food": "🍎 食物检查",
+        "ai_greeting_body": "我是您的个人健康助手，可以为您分析健康趋势、饮食和用药情况。今天有什么需要帮助的吗？",
+        "ai_doc_generate": "生成临床摘要",
+        "ai_doc_generating": "正在生成摘要…",
+        "ai_doc_overview": "患者概况",
+        "ai_doc_vitals": "当前体征",
+        "ai_doc_meds": "用药情况",
+        "ai_doc_summary_title": "AI 临床摘要",
+        "ai_clear": "🗑 清空",
+        "comm_title": "社区与奖励",
+        "comm_subtitle": "保持动力，互相鼓励",
+        "comm_checkin_title": "每日签到",
+        "comm_checkin_streak": "天连续签到",
+        "comm_checkin_btn": "立即签到",
+        "comm_checkin_done": "已签到 ✓",
+        "comm_achievement_title": "近期成就",
+        "comm_achievement_name": "完美习惯",
+        "comm_achievement_desc": "连续12天按时服药，坚持得很好！",
+        "comm_points_title": "健康积分",
+        "comm_reward_report": "数字健康报告",
+        "comm_reward_dietitian": "营养师一对一问答",
+        "comm_redeem": "兑换",
+        "comm_redeem_ok": "兑换成功！🎉",
+        "comm_redeem_insufficient": "积分不足",
+        "comm_patient_title": "病友社区",
+        "comm_patient_desc": "分享饮食技巧、日常习惯，鼓励同路上的伙伴。",
+        "comm_tag_diet": "饮食贴士",
+        "comm_tag_support": "互助支持",
+        "comm_view_posts": "查看帖子",
+        "comm_back": "← 返回",
     },
 }
 
@@ -165,6 +235,12 @@ defaults = {
     "community_page": 0,
     "liked_posts": set(),
     "post_form_rev": 0,
+    "ai_sub_tab": "patient",
+    "doctor_summary": None,
+    "comm_streak": 7,
+    "comm_last_checkin": None,
+    "comm_wellness_pts": 1250,
+    "comm_show_posts": False,
 }
 for k, v in defaults.items():
     if k not in st.session_state:
@@ -421,10 +497,54 @@ html, body, [data-testid="stAppViewContainer"] {
 .hp-legend span { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: #94A3B8; }
 .hp-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 
+/* ── AI sub-tab bar ── */
+[data-testid="element-container"]:has(#hp-ai-subtab-marker) {
+    height: 0 !important; overflow: hidden !important;
+    margin: 0 !important; padding: 0 !important;
+}
+[data-testid="element-container"]:has(#hp-ai-subtab-marker)
+  + [data-testid="element-container"] {
+    background: #fff !important;
+    border-bottom: 1px solid #F0F2F5 !important;
+    padding: 10px 16px 10px !important;
+}
+[data-testid="element-container"]:has(#hp-ai-subtab-marker)
+  + [data-testid="element-container"]
+  div[data-testid="stButton"] > button[kind="secondary"] {
+    background: #F0F4FF !important; color: #64748B !important;
+    border: 1.5px solid #E2E8F0 !important; border-radius: 22px !important;
+    height: 38px !important; min-height: 38px !important;
+    font-size: 13px !important; font-weight: 600 !important; box-shadow: none !important;
+}
+[data-testid="element-container"]:has(#hp-ai-subtab-marker)
+  + [data-testid="element-container"]
+  div[data-testid="stButton"] > button[kind="primary"] {
+    background: #3B5BDB !important; color: #fff !important;
+    border: none !important; border-radius: 22px !important;
+    height: 38px !important; min-height: 38px !important;
+    font-size: 13px !important; font-weight: 600 !important;
+    box-shadow: 0 3px 10px rgba(59,91,219,.28) !important;
+}
+
+/* ── AI greeting card ── */
+.hp-ai-greeting {
+    margin: 14px 16px 10px; background: #fff; border-radius: 18px;
+    padding: 14px 16px; display: flex; gap: 12px; align-items: flex-start;
+    box-shadow: 0 2px 12px rgba(59,91,219,.07); border: 1px solid #EEF2FF;
+}
+.hp-ai-avatar {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: linear-gradient(135deg, #3B5BDB, #7C8FF5);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; flex-shrink: 0; box-shadow: 0 3px 10px rgba(59,91,219,.3);
+}
+.hp-ai-greeting-text .greet-name { font-size: 15px; font-weight: 700; color: #0F172A; margin: 0 0 5px; }
+.hp-ai-greeting-text .greet-body { font-size: 13px; color: #64748B; line-height: 1.55; margin: 0; }
+
 /* ── AI chat ── */
 .chat-scroll {
-    max-height: 52vh; overflow-y: auto;
-    display: flex; flex-direction: column; gap: 6px; padding: 4px 0;
+    max-height: 48vh; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 8px; padding: 8px 16px 4px;
 }
 .hp-bubble-user {
     background: #3B5BDB; color: #fff;
@@ -433,14 +553,35 @@ html, body, [data-testid="stAppViewContainer"] {
     font-size: 14px; line-height: 1.5; word-break: break-word;
 }
 .hp-bubble-ai {
-    background: #F1F5F9; color: #0F172A;
-    border-radius: 18px 18px 18px 4px;
-    padding: 10px 14px; margin-right: 36px;
-    font-size: 14px; line-height: 1.5; word-break: break-word;
+    background: #fff; color: #0F172A;
+    border-radius: 4px 18px 18px 18px;
+    padding: 12px 15px; margin-right: 36px;
+    font-size: 14px; line-height: 1.6; word-break: break-word;
+    border: 1px solid #E8EEF4; box-shadow: 0 1px 6px rgba(0,0,0,.05);
 }
 .hp-chat-empty {
     text-align: center; color: #94A3B8; font-size: 13px; padding: 36px 20px;
 }
+
+/* ── doctor summary view ── */
+.hp-doc-section { padding: 10px 16px 4px; }
+.hp-doc-section-title {
+    font-size: 11px; font-weight: 700; color: #94A3B8;
+    text-transform: uppercase; letter-spacing: .07em; margin-bottom: 8px;
+}
+.hp-doc-stat-row { display: flex; gap: 10px; margin-bottom: 10px; }
+.hp-doc-stat {
+    flex: 1; background: #fff; border-radius: 14px; padding: 12px;
+    text-align: center; box-shadow: 0 1px 8px rgba(0,0,0,.05); border: 1px solid #F1F5F9;
+}
+.hp-doc-stat .ds-val { font-size: 17px; font-weight: 700; color: #0F172A; }
+.hp-doc-stat .ds-lbl { font-size: 10px; color: #94A3B8; margin-top: 2px; }
+.hp-doc-summary-box {
+    background: #fff; border-radius: 16px; padding: 16px; margin: 0 16px 12px;
+    box-shadow: 0 2px 12px rgba(59,91,219,.07); border: 1px solid #EEF2FF;
+    font-size: 13px; color: #374151; line-height: 1.65;
+}
+.hp-doc-summary-box strong { color: #0F172A; }
 
 /* ── settings ── */
 .hp-settings-label {
@@ -531,6 +672,144 @@ html, body, [data-testid="stAppViewContainer"] {
 }
 .hp-post-content { font-size: 13px; color: #374151; line-height: 1.55; }
 .hp-post-accent { height: 4px; border-radius: 4px; margin-bottom: 12px; }
+
+/* ── Community & Rewards page ── */
+.hp-comm-header {
+    background: #fff; padding: 20px 20px 14px;
+    border-bottom: 1px solid #F0F2F5;
+}
+.hp-comm-header h2 {
+    margin: 0; font-size: 22px; font-weight: 700; color: #0F172A; letter-spacing: -.3px;
+}
+.hp-comm-header p { margin: 3px 0 0; font-size: 13px; color: #94A3B8; }
+
+/* Check-in card row */
+.hp-checkin-row {
+    display: flex; align-items: center; gap: 13px;
+}
+.hp-checkin-icon {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: #FEF3C7; display: flex; align-items: center;
+    justify-content: center; font-size: 22px; flex-shrink: 0;
+}
+.hp-checkin-info { flex: 1; }
+.hp-checkin-info .ci-title { font-size: 15px; font-weight: 700; color: #0F172A; margin: 0; }
+.hp-checkin-info .ci-sub   { font-size: 12px; color: #94A3B8; margin: 2px 0 0; }
+.hp-checkin-btn {
+    background: #3B5BDB; color: #fff; border: none; border-radius: 22px;
+    padding: 9px 18px; font-size: 13px; font-weight: 700; cursor: pointer;
+    white-space: nowrap; flex-shrink: 0;
+    box-shadow: 0 3px 10px rgba(59,91,219,.35);
+}
+.hp-checkin-btn.done {
+    background: #DCFCE7; color: #15803D; box-shadow: none;
+}
+
+/* Achievement card */
+.hp-achievement-inner {
+    background: #EEF2FF; border-radius: 14px; padding: 14px 16px;
+    display: flex; align-items: center; gap: 14px;
+}
+.hp-achievement-badge {
+    width: 46px; height: 46px; border-radius: 50%;
+    background: #fff; display: flex; align-items: center;
+    justify-content: center; font-size: 24px; flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(59,91,219,.15);
+}
+.hp-achievement-text .at-title { font-size: 15px; font-weight: 700; color: #0F172A; margin: 0; }
+.hp-achievement-text .at-desc  { font-size: 12px; color: #475569; margin: 3px 0 0; line-height: 1.5; }
+
+/* Wellness points */
+.hp-points-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 14px;
+}
+.hp-points-header .pt-label { font-size: 15px; font-weight: 700; color: #0F172A; display: flex; align-items: center; gap: 7px; }
+.hp-points-header .pt-value { font-size: 18px; font-weight: 800; color: #0F172A; }
+.hp-points-header .pt-unit  { font-size: 13px; font-weight: 500; color: #94A3B8; margin-left: 3px; }
+.hp-reward-grid { display: flex; gap: 10px; }
+.hp-reward-item {
+    flex: 1; background: #F8FAFC; border-radius: 12px;
+    padding: 12px; border: 1px solid #E2E8F0;
+}
+.hp-reward-item .ri-name { font-size: 13px; font-weight: 600; color: #0F172A; margin: 0 0 5px; line-height: 1.4; }
+.hp-reward-item .ri-pts  { font-size: 13px; font-weight: 700; color: #3B5BDB; margin: 0; }
+
+/* Patient community card */
+.hp-patcomm-row {
+    display: flex; align-items: center; gap: 13px;
+}
+.hp-patcomm-icon {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: #DCFCE7; display: flex; align-items: center;
+    justify-content: center; font-size: 22px; flex-shrink: 0;
+}
+.hp-patcomm-info { flex: 1; min-width: 0; }
+.hp-patcomm-info .pc-title { font-size: 15px; font-weight: 700; color: #0F172A; margin: 0 0 3px; }
+.hp-patcomm-info .pc-desc  { font-size: 12px; color: #64748B; margin: 0; line-height: 1.5; }
+.hp-patcomm-arrow { font-size: 18px; color: #94A3B8; flex-shrink: 0; }
+.hp-tag-row { display: flex; gap: 7px; margin-top: 10px; }
+.hp-tag-pill {
+    border: 1px solid #E2E8F0; border-radius: 20px;
+    padding: 4px 12px; font-size: 12px; font-weight: 500; color: #475569;
+    background: #fff;
+}
+
+/* ── Community marker-card containers ── */
+[data-testid="element-container"]:has(#hp-ci-marker),
+[data-testid="element-container"]:has(#hp-pts-marker),
+[data-testid="element-container"]:has(#hp-patcomm-marker) {
+    height: 0 !important; overflow: hidden !important;
+    margin: 0 !important; padding: 0 !important;
+}
+[data-testid="element-container"]:has(#hp-ci-marker) + [data-testid="element-container"],
+[data-testid="element-container"]:has(#hp-pts-marker) + [data-testid="element-container"],
+[data-testid="element-container"]:has(#hp-patcomm-marker) + [data-testid="element-container"] {
+    background: #fff !important;
+    border-radius: 20px !important;
+    margin: 0 16px 10px !important;
+    box-shadow: 0 2px 16px rgba(15,23,42,.06) !important;
+    padding: 14px 14px !important;
+}
+/* Remove inner vertical gap */
+[data-testid="element-container"]:has(#hp-ci-marker) + [data-testid="element-container"] [data-testid="stVerticalBlock"],
+[data-testid="element-container"]:has(#hp-pts-marker) + [data-testid="element-container"] [data-testid="stVerticalBlock"],
+[data-testid="element-container"]:has(#hp-patcomm-marker) + [data-testid="element-container"] [data-testid="stVerticalBlock"] {
+    gap: 4px !important;
+}
+/* Remove column padding inside community cards */
+[data-testid="element-container"]:has(#hp-ci-marker) + [data-testid="element-container"] [data-testid="column"],
+[data-testid="element-container"]:has(#hp-pts-marker) + [data-testid="element-container"] [data-testid="column"],
+[data-testid="element-container"]:has(#hp-patcomm-marker) + [data-testid="element-container"] [data-testid="column"] {
+    padding: 0 4px !important;
+}
+/* Check-in button: small blue pill on the right */
+[data-testid="element-container"]:has(#hp-ci-marker) + [data-testid="element-container"]
+  div[data-testid="stButton"] > button[kind="primary"] {
+    border-radius: 22px !important;
+    height: 38px !important; min-height: 38px !important;
+    font-size: 13px !important; padding: 0 14px !important;
+    box-shadow: 0 3px 10px rgba(59,91,219,.3) !important;
+}
+/* Redeem buttons: small outline style */
+[data-testid="element-container"]:has(#hp-pts-marker) + [data-testid="element-container"]
+  div[data-testid="stButton"] > button {
+    height: 32px !important; min-height: 32px !important;
+    font-size: 12px !important; padding: 0 10px !important;
+    border-radius: 10px !important;
+    background: #EEF2FF !important; color: #3B5BDB !important;
+    border: 1.5px solid #C7D2FE !important; box-shadow: none !important;
+}
+/* View Posts button: full-width blue */
+[data-testid="element-container"]:has(#hp-patcomm-marker) + [data-testid="element-container"]
+  div[data-testid="stButton"] > button[kind="primary"] {
+    border-radius: 14px !important;
+    height: 42px !important; min-height: 42px !important;
+    font-size: 14px !important;
+    background: #3B5BDB !important; color: #fff !important;
+    border: none !important;
+    box-shadow: 0 3px 10px rgba(59,91,219,.28) !important;
+}
 
 /* ── Streamlit widget tweaks ── */
 div[data-testid="stButton"] > button {
@@ -907,26 +1186,67 @@ def page_medications():
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# PAGE: AI CHAT  (MERaLiON SEA nutrition assistant)
+# AI HELPER – doctor clinical summary
 # ═══════════════════════════════════════════════════════════════════════════
-def page_ai_chat():
-    # ── Title row: title + voice toggle button ──
-    tc1, tc2 = st.columns([3, 1])
-    with tc1:
-        st.markdown(f'<div class="hp-page-title" style="position:static;border:none;padding-left:0;">🥗 {S("title_ai")}</div>', unsafe_allow_html=True)
-    with tc2:
-        voice_label = "🎤 Voice" if not st.session_state.audio_mode else "⌨️ Text"
-        if st.button(voice_label, key="toggle_audio", use_container_width=True,
-                     type="primary" if st.session_state.audio_mode else "secondary"):
-            st.session_state.audio_mode = not st.session_state.audio_mode
-            st.rerun()
+def ask_ai_doctor_summary() -> str:
+    key = get_secret("merlion_API_KEY")
+    if not key:
+        return "⚠️ MERaLiON API key not configured in secrets.toml"
+    try:
+        from openai import OpenAI
+        client = OpenAI(base_url="http://meralion.org:8010/v1", api_key=key)
+        user = get_user()
+        lv = get_latest_vitals()
+        meds = get_medications()
+        ms = get_today_med_status()
+        lab = get_lab_results()
+        conditions = ", ".join(user.get("conditions", []))
+        med_list = ", ".join(meds["name"].tolist()) if not meds.empty else "None"
+        lab_summary = ""
+        if not lab.empty:
+            for _, row in lab.iterrows():
+                lab_summary += f"{row.get('test_name','')}: {row.get('status','')} ({row.get('tested_at','')}); "
+        system_prompt = (
+            "You are a clinical assistant generating a structured patient summary for a physician. "
+            "Be concise, factual, and use clinical language. "
+            "Use **bold** for section headers."
+        )
+        user_msg = (
+            f"Generate a clinical summary for:\n"
+            f"Patient: {user.get('name','')}, Age: {user.get('age','?')}, Gender: {user.get('gender','?')}\n"
+            f"Conditions: {conditions}\n"
+            f"Latest vitals — BP: {lv.get('systolic','?')}/{lv.get('diastolic','?')} mmHg, "
+            f"HR: {lv.get('heart_rate','?')} bpm, Fasting Glucose: {lv.get('glucose','?')} mmol/L\n"
+            f"Medications: {med_list}\n"
+            f"Medication adherence today: {ms['taken']}/{ms['total']} taken\n"
+            f"Lab results: {lab_summary if lab_summary else 'No recent labs'}\n\n"
+            "Structure with: **Patient Overview**, **Vitals Assessment**, "
+            "**Medication Status**, **Key Concerns**, **Recommendations**"
+        )
+        response = client.chat.completions.create(
+            model="MERaLiON/MERaLiON-3-10B",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_msg},
+            ],
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        return f"Error generating summary: {e}"
 
-    # ── Chat history ──
+
+# ═══════════════════════════════════════════════════════════════════════════
+# AI SUB-VIEWS
+# ═══════════════════════════════════════════════════════════════════════════
+def _ai_patient_view(user: dict):
+    """Patient-facing AI chat."""
+    # ── Greeting or chat history ──
     if st.session_state.chat_history:
         msgs_html = '<div class="chat-scroll">'
         for msg in st.session_state.chat_history:
             cls = "hp-bubble-user" if msg["role"] == "user" else "hp-bubble-ai"
-            msgs_html += f'<div class="{cls}">{msg["content"]}</div>'
+            txt = msg["content"].replace("\n", "<br>")
+            msgs_html += f'<div class="{cls}">{txt}</div>'
         msgs_html += '</div>'
         st.markdown(msgs_html, unsafe_allow_html=True)
     else:
@@ -935,52 +1255,75 @@ def page_ai_chat():
             <div class="hp-chat-empty">
               <div style="font-size:44px;margin-bottom:10px;">🎤</div>
               <div style="font-weight:600;color:#6B7280;margin-bottom:4px;">Speak in your language</div>
-              <div style="font-size:12px;">Supports Malay · Indonesian · Thai · Vietnamese · Tamil · English · 中文</div>
+              <div style="font-size:12px;">Malay · Indonesian · Thai · Vietnamese · Tamil · English · 中文</div>
             </div>""", unsafe_allow_html=True)
         else:
-            st.markdown("""
-            <div class="hp-chat-empty">
-              <div style="font-size:44px;margin-bottom:10px;">🥗</div>
-              <div style="font-weight:600;color:#6B7280;margin-bottom:4px;">Hi, I'm your SEA Nutrition Assistant</div>
-              <div style="font-size:12px;">Ask me for food &amp; diet recommendations tailored to you.</div>
+            st.markdown(f"""
+            <div class="hp-ai-greeting">
+              <div class="hp-ai-avatar">✨</div>
+              <div class="hp-ai-greeting-text">
+                <p class="greet-name">Hello {user.get('name', '')}! 👋</p>
+                <p class="greet-body">{S('ai_greeting_body')}</p>
+              </div>
             </div>""", unsafe_allow_html=True)
 
-    # ── Example question buttons (text mode only) ──
+    # ── Quick action chips (2×2 grid) ──
     if not st.session_state.audio_mode:
-        example_qs = (
-            [
-                "🍚 糖尿病适合吃什么早餐？",
-                "🥗 推荐低盐东南亚午餐",
-                "🍌 适合我的健康零食？",
-                "🚫 我应该避免哪些食物？",
+        if st.session_state.language == "zh":
+            quick_actions = [
+                (S("ai_quick_trend"),
+                 "请给我一个本周健康趋势摘要，包括血压、血糖和任何值得注意的变化。"),
+                (S("ai_quick_meds"),
+                 "我的用药情况如何？有什么关于坚持服药或需要注意的副作用的建议吗？"),
+                (S("ai_quick_diet"),
+                 "根据我的健康状况和最新体征，给我一些个性化的饮食建议。"),
+                (S("ai_quick_food"),
+                 "鉴于我的病症，我应该避免哪些食物，应该多吃哪些食物？"),
             ]
-            if st.session_state.language == "zh"
-            else [
-                "🍚 Breakfast ideas for diabetes?",
-                "🥗 Low-sodium SEA lunch ideas",
-                "🍌 Healthy SEA snacks for me?",
-                "🚫 Foods I should avoid?",
+        else:
+            quick_actions = [
+                (S("ai_quick_trend"),
+                 "Give me a summary of my health trends this week, including blood pressure, glucose, and any notable changes."),
+                (S("ai_quick_meds"),
+                 "How am I doing with my medications? Any advice on adherence or side effects to watch for?"),
+                (S("ai_quick_diet"),
+                 "Give me personalized diet advice based on my health conditions and latest vitals."),
+                (S("ai_quick_food"),
+                 "What foods should I avoid and what should I eat more of given my conditions?"),
             ]
-        )
-        eq_cols = st.columns(2)
-        for i, q in enumerate(example_qs):
-            with eq_cols[i % 2]:
-                if st.button(q, key=f"eq_{i}", use_container_width=True):
-                    st.session_state.pending_question = q
+        qa_cols = st.columns(2)
+        for i, (label, prompt) in enumerate(quick_actions):
+            with qa_cols[i % 2]:
+                if st.button(label, key=f"qa_{i}", use_container_width=True):
+                    st.session_state.pending_question = prompt
                     st.rerun()
 
-    st.markdown('<div style="height:6px;"></div>', unsafe_allow_html=True)
+    # ── Controls row: voice toggle + clear ──
+    v1, v2 = st.columns([3, 1])
+    with v1:
+        voice_label = "🎤 Voice" if not st.session_state.audio_mode else "⌨️ Text"
+        if st.button(voice_label, key="toggle_audio", use_container_width=True,
+                     type="primary" if st.session_state.audio_mode else "secondary"):
+            st.session_state.audio_mode = not st.session_state.audio_mode
+            st.rerun()
+    with v2:
+        if st.button(S("ai_clear"), key="clear_chat", use_container_width=True):
+            st.session_state.chat_history = []
+            st.rerun()
 
-    # ── Input area: voice mode or text mode ──
+    st.markdown('<div style="height:4px;"></div>', unsafe_allow_html=True)
+
+    # ── Input area ──
     if st.session_state.audio_mode:
         st.markdown("""
-        <div style="padding:6px 4px 2px;font-size:12px;color:#6B7280;">
+        <div style="padding:4px 4px 2px;font-size:12px;color:#6B7280;">
         🌏 Speak Malay, Indonesian, Thai, Vietnamese, Tamil, English, or 中文
         </div>""", unsafe_allow_html=True)
         audio_val = st.audio_input("Record your question", key="voice_input", label_visibility="collapsed")
         if audio_val is not None:
             audio_bytes = audio_val.read()
-            if audio_bytes and st.button("📤 Send voice message", key="send_audio", use_container_width=True, type="primary"):
+            if audio_bytes and st.button("📤 Send voice message", key="send_audio",
+                                         use_container_width=True, type="primary"):
                 with st.spinner(S("thinking")):
                     transcription, reply = ask_ai_merlion_audio(audio_bytes, st.session_state.chat_history)
                 st.session_state.chat_history.append({"role": "user", "content": transcription})
@@ -994,7 +1337,6 @@ def page_ai_chat():
                     "msg", label_visibility="collapsed", placeholder=S("user_input"))
             with c2:
                 send = st.form_submit_button(S("btn_submit"), use_container_width=True)
-
         if send and user_input.strip():
             txt = user_input.strip()
             st.session_state.chat_history.append({"role": "user", "content": txt})
@@ -1003,7 +1345,7 @@ def page_ai_chat():
             st.session_state.chat_history.append({"role": "assistant", "content": reply})
             st.rerun()
 
-    # Handle example button click
+    # Handle quick-action / pending question
     if st.session_state.get("pending_question"):
         pq = st.session_state.pending_question
         st.session_state.pending_question = None
@@ -1014,19 +1356,135 @@ def page_ai_chat():
         st.rerun()
 
 
+def _ai_doctor_view(user: dict):
+    """Doctor-facing clinical summary view."""
+    import re
+    lv  = get_latest_vitals()
+    ms  = get_today_med_status()
+    conditions = ", ".join(user.get("conditions", []))
+
+    # ── Patient overview ──
+    st.markdown(f'<div class="hp-doc-section"><p class="hp-doc-section-title">{S("ai_doc_overview")}</p></div>',
+                unsafe_allow_html=True)
+    st.markdown(f"""
+    <div class="hp-card" style="margin-top:0;">
+      <div class="hp-metric-row">
+        <div class="hp-icon-circle" style="background:#EDE9FE;">👤</div>
+        <div>
+          <p class="hp-metric-label">Name · Age · Gender</p>
+          <p class="hp-metric-value" style="font-size:14px;">
+            {user.get('name','—')} · {user.get('age','—')} · {user.get('gender','—')}
+          </p>
+        </div>
+      </div>
+      <div class="hp-metric-row" style="border-bottom:none;padding-bottom:0;">
+        <div class="hp-icon-circle" style="background:#FEE2E2;">🏥</div>
+        <div>
+          <p class="hp-metric-label">Conditions</p>
+          <p class="hp-metric-value" style="font-size:13px;">{conditions}</p>
+        </div>
+      </div>
+    </div>""", unsafe_allow_html=True)
+
+    # ── Vitals stats ──
+    bp_color  = "#EF4444" if int(lv.get("systolic", 0) or 0) > 140 else "#22C55E"
+    glu_color = "#F59E0B" if float(lv.get("glucose", 0) or 0) > 6.0 else "#22C55E"
+    st.markdown(f'<div class="hp-doc-section"><p class="hp-doc-section-title">{S("ai_doc_vitals")}</p>'
+                f'<div class="hp-doc-stat-row">'
+                f'<div class="hp-doc-stat"><div class="ds-val" style="color:{bp_color};">'
+                f'{lv.get("systolic","—")}/{lv.get("diastolic","—")}</div><div class="ds-lbl">mmHg (BP)</div></div>'
+                f'<div class="hp-doc-stat"><div class="ds-val" style="color:{glu_color};">'
+                f'{lv.get("glucose","—")}</div><div class="ds-lbl">mmol/L (Glucose)</div></div>'
+                f'<div class="hp-doc-stat"><div class="ds-val">{lv.get("heart_rate","—")}</div>'
+                f'<div class="ds-lbl">bpm (HR)</div></div>'
+                f'</div></div>', unsafe_allow_html=True)
+
+    # ── Medication adherence ──
+    adh_pct   = int(ms['taken'] / ms['total'] * 100) if ms['total'] > 0 else 0
+    adh_color = "#22C55E" if adh_pct >= 80 else "#F59E0B" if adh_pct >= 50 else "#EF4444"
+    st.markdown(f'<div class="hp-doc-section"><p class="hp-doc-section-title">{S("ai_doc_meds")}</p></div>',
+                unsafe_allow_html=True)
+    st.markdown(f"""
+    <div class="hp-card" style="margin-top:0;">
+      <div class="hp-med-summary">
+        <div class="hp-icon-circle med">💊</div>
+        <div class="hp-med-info">
+          <p class="mtitle"><b>{ms['taken']}/{ms['total']}</b> medications taken today</p>
+          <p class="msub" style="color:{adh_color};font-weight:600;">{adh_pct}% adherence</p>
+        </div>
+      </div>
+    </div>""", unsafe_allow_html=True)
+
+    # ── Generate summary button ──
+    st.markdown('<div style="height:4px;"></div>', unsafe_allow_html=True)
+    if st.button(S("ai_doc_generate"), key="gen_doc_summary", use_container_width=True, type="primary"):
+        with st.spinner(S("ai_doc_generating")):
+            st.session_state.doctor_summary = ask_ai_doctor_summary()
+        st.rerun()
+
+    # ── Display AI summary ──
+    if st.session_state.doctor_summary:
+        st.markdown(f'<p class="hp-doc-section-title" style="padding:10px 16px 4px;">'
+                    f'{S("ai_doc_summary_title")}</p>', unsafe_allow_html=True)
+        summary_html = st.session_state.doctor_summary.replace("\n", "<br>")
+        summary_html = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", summary_html)
+        st.markdown(f'<div class="hp-doc-summary-box">{summary_html}</div>', unsafe_allow_html=True)
+        if st.button("🔄 Regenerate", key="regen_doc_summary"):
+            st.session_state.doctor_summary = None
+            st.rerun()
+
+    st.markdown('<div style="height:6px;"></div>', unsafe_allow_html=True)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PAGE: AI CHAT  (MERaLiON SEA nutrition assistant)
+# ═══════════════════════════════════════════════════════════════════════════
+def page_ai_chat():
+    user = get_user()
+    # ── Page title ──
+    st.markdown(f'<div class="hp-page-title">✨ {S("title_ai")}</div>', unsafe_allow_html=True)
+
+    # ── Sub-tab switcher (Patient View / Doctor Summary) ──
+    st.markdown('<div id="hp-ai-subtab-marker"></div>', unsafe_allow_html=True)
+    sc1, sc2 = st.columns(2)
+    patient_active = st.session_state.ai_sub_tab == "patient"
+    with sc1:
+        if st.button(S("ai_tab_patient"), key="ai_tab_pt", use_container_width=True,
+                     type="primary" if patient_active else "secondary"):
+            st.session_state.ai_sub_tab = "patient"
+            st.rerun()
+    with sc2:
+        if st.button(S("ai_tab_doctor"), key="ai_tab_dr", use_container_width=True,
+                     type="primary" if not patient_active else "secondary"):
+            st.session_state.ai_sub_tab = "doctor"
+            st.rerun()
+
+    if patient_active:
+        _ai_patient_view(user)
+    else:
+        _ai_doctor_view(user)
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # PAGE: COMMUNITY
 # ═══════════════════════════════════════════════════════════════════════════
-def page_community():
-    user = get_user()
-    st.markdown(f'<div class="hp-page-title">👥 {S("title_community")}</div>', unsafe_allow_html=True)
+def _render_community_posts(user: dict):
+    """Renders the post feed (posts view inside Community tab)."""
+    if st.button(S("comm_back"), key="comm_back_btn"):
+        st.session_state.comm_show_posts = False
+        st.rerun()
 
-    # ── New post form ──────────────────────────────────────────────────────
+    st.markdown('<div style="height:6px;"></div>', unsafe_allow_html=True)
+
+    # New post form
     with st.expander("✏️ " + S("community_new_post")):
         cond_options = ["Type 2 Diabetes", "Hypertension", "Dyslipidemia", "Other"]
         sel_cond = st.selectbox(S("community_condition_label"), cond_options, key="new_post_cond")
         rev = st.session_state.post_form_rev
-        post_text = st.text_area(S("community_post_placeholder"), key=f"new_post_text_{rev}", height=100, label_visibility="collapsed")
+        post_text = st.text_area(
+            S("community_post_placeholder"),
+            key=f"new_post_text_{rev}", height=100, label_visibility="collapsed",
+        )
         if st.button(S("community_btn_post"), key="submit_post"):
             if post_text.strip():
                 add_community_post(
@@ -1036,12 +1494,11 @@ def page_community():
                     condition_tag=sel_cond,
                     content=post_text.strip(),
                 )
-                st.session_state.post_form_rev += 1  # new key → text_area resets
+                st.session_state.post_form_rev += 1
                 st.session_state.community_page = 0
                 st.success(S("community_post_success"))
                 st.rerun()
 
-    # ── Load posts ─────────────────────────────────────────────────────────
     df = get_community_posts(limit=100)
     if df.empty:
         st.markdown(f"""<div class="hp-card"><div class="hp-community-empty">
@@ -1079,7 +1536,6 @@ def page_community():
         posted_str = posted_dt.strftime("%b %d") if hasattr(posted_dt, "strftime") else str(posted_dt)[:10]
         already_liked = pid in liked_set
 
-        # Hidden marker — CSS :has() targets the NEXT sibling container as a card
         st.markdown('<div class="hp-post-marker" style="display:none"></div>', unsafe_allow_html=True)
         with st.container():
             st.markdown(f"""
@@ -1110,7 +1566,6 @@ def page_community():
                     st.session_state.liked_posts = liked_set
                     st.rerun()
 
-    # ── Pagination ─────────────────────────────────────────────────────────
     if total_pages > 1:
         st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
         pcol1, pcol2, pcol3 = st.columns([1, 2, 1])
@@ -1119,11 +1574,139 @@ def page_community():
                 st.session_state.community_page = page_num - 1
                 st.rerun()
         with pcol2:
-            st.markdown(f"<div style='text-align:center;font-size:13px;color:#6B7280;padding-top:8px;'>{page_num+1} / {total_pages}</div>", unsafe_allow_html=True)
+            st.markdown(
+                f"<div style='text-align:center;font-size:13px;color:#6B7280;padding-top:8px;'>"
+                f"{page_num+1} / {total_pages}</div>", unsafe_allow_html=True)
         with pcol3:
             if page_num < total_pages - 1 and st.button(S("community_next") + " →", key="next_page", use_container_width=True):
                 st.session_state.community_page = page_num + 1
                 st.rerun()
+
+
+def page_community():
+    user = get_user()
+
+    # ── Header ──
+    st.markdown(f"""
+    <div class="hp-comm-header">
+      <h2>{S("comm_title")}</h2>
+      <p>{S("comm_subtitle")}</p>
+    </div>""", unsafe_allow_html=True)
+
+    # ── Posts sub-view ──
+    if st.session_state.comm_show_posts:
+        _render_community_posts(user)
+        return
+
+    # ─────────────────────────────────────────────────────────────────────
+    # MAIN COMMUNITY & REWARDS DASHBOARD
+    # ─────────────────────────────────────────────────────────────────────
+
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    already_checked_in = st.session_state.comm_last_checkin == today_str
+    streak = st.session_state.comm_streak
+    pts    = st.session_state.comm_wellness_pts
+
+    # ── 1. Daily Check-in card ──
+    # Marker → next container styled as card; columns: info left, button right
+    st.markdown('<div id="hp-ci-marker" style="display:none"></div>', unsafe_allow_html=True)
+    with st.container():
+        ci_l, ci_r = st.columns([5, 2])
+        with ci_l:
+            st.markdown(f"""
+            <div style="display:flex;align-items:center;gap:12px;padding:4px 0;">
+              <div class="hp-checkin-icon">🔥</div>
+              <div>
+                <p style="margin:0;font-size:15px;font-weight:700;color:#0F172A;">{S("comm_checkin_title")}</p>
+                <p style="margin:3px 0 0;font-size:12px;color:#94A3B8;">{streak}-{S("comm_checkin_streak")}</p>
+              </div>
+            </div>""", unsafe_allow_html=True)
+        with ci_r:
+            if not already_checked_in:
+                if st.button(S("comm_checkin_btn"), key="comm_checkin_go",
+                             type="primary", use_container_width=True):
+                    st.session_state.comm_last_checkin = today_str
+                    st.session_state.comm_streak += 1
+                    st.session_state.comm_wellness_pts += 50
+                    st.rerun()
+            else:
+                st.markdown(
+                    f'<div style="text-align:center;background:#DCFCE7;border-radius:12px;'
+                    f'padding:9px 4px;font-size:11px;font-weight:700;color:#15803D;">'
+                    f'{S("comm_checkin_done")}</div>',
+                    unsafe_allow_html=True,
+                )
+
+    # ── 2. Recent Achievement card (pure HTML — no interactive elements) ──
+    st.markdown(f"""
+    <div class="hp-card">
+      <div class="hp-card-title" style="margin-bottom:12px;">🏅 {S("comm_achievement_title")}</div>
+      <div class="hp-achievement-inner">
+        <div class="hp-achievement-badge">🏆</div>
+        <div class="hp-achievement-text">
+          <p class="at-title">{S("comm_achievement_name")}</p>
+          <p class="at-desc">{S("comm_achievement_desc")}</p>
+        </div>
+      </div>
+    </div>""", unsafe_allow_html=True)
+
+    # ── 3. Wellness Points card ──
+    # Marker → card container; two reward columns each with info + redeem button
+    st.markdown('<div id="hp-pts-marker" style="display:none"></div>', unsafe_allow_html=True)
+    with st.container():
+        st.markdown(f"""
+        <div class="hp-points-header">
+          <span class="pt-label">🎁 {S("comm_points_title")}</span>
+          <span><span class="pt-value">{pts:,}</span><span class="pt-unit"> pts</span></span>
+        </div>""", unsafe_allow_html=True)
+        r1, r2 = st.columns(2)
+        with r1:
+            st.markdown(f"""
+            <div class="hp-reward-item">
+              <p class="ri-name">{S("comm_reward_report")}</p>
+              <p class="ri-pts">500 pts</p>
+            </div>""", unsafe_allow_html=True)
+            if st.button(S("comm_redeem"), key="redeem_report", use_container_width=True):
+                if pts >= 500:
+                    st.session_state.comm_wellness_pts -= 500
+                    st.success(S("comm_redeem_ok"))
+                    st.rerun()
+                else:
+                    st.warning(S("comm_redeem_insufficient"))
+        with r2:
+            st.markdown(f"""
+            <div class="hp-reward-item">
+              <p class="ri-name">{S("comm_reward_dietitian")}</p>
+              <p class="ri-pts">2,000 pts</p>
+            </div>""", unsafe_allow_html=True)
+            if st.button(S("comm_redeem"), key="redeem_dietitian", use_container_width=True):
+                if pts >= 2000:
+                    st.session_state.comm_wellness_pts -= 2000
+                    st.success(S("comm_redeem_ok"))
+                    st.rerun()
+                else:
+                    st.warning(S("comm_redeem_insufficient"))
+
+    # ── 4. Patient Community card ──
+    # Marker → card container; info HTML then view-posts button at bottom
+    st.markdown('<div id="hp-patcomm-marker" style="display:none"></div>', unsafe_allow_html=True)
+    with st.container():
+        st.markdown(f"""
+        <div style="display:flex;align-items:flex-start;gap:13px;margin-bottom:8px;">
+          <div class="hp-patcomm-icon">👥</div>
+          <div class="hp-patcomm-info">
+            <p class="pc-title">{S("comm_patient_title")}</p>
+            <p class="pc-desc">{S("comm_patient_desc")}</p>
+          </div>
+        </div>
+        <div class="hp-tag-row" style="margin-bottom:10px;">
+          <span class="hp-tag-pill">{S("comm_tag_diet")}</span>
+          <span class="hp-tag-pill">{S("comm_tag_support")}</span>
+        </div>""", unsafe_allow_html=True)
+        if st.button(S("comm_view_posts"), key="go_posts",
+                     use_container_width=True, type="primary"):
+            st.session_state.comm_show_posts = True
+            st.rerun()
 
 
 # ═══════════════════════════════════════════════════════════════════════════
