@@ -290,23 +290,16 @@ html, body, [data-testid="stAppViewContainer"] {
 .stDeployButton { display: none !important; }
 
 /* ─────────────────────────────────────────────────────
-   BOTTOM NAV – single-layer, pure-CSS :has() fix
+   BOTTOM NAV – JS adds .hp-nav-fixed class at runtime
 ───────────────────────────────────────────────────── */
 #hp-nav-marker { display: none !important; height: 0 !important; }
 
-[data-testid="element-container"]:has(#hp-nav-marker) {
-    height: 0 !important; overflow: hidden !important;
-    margin: 0 !important; padding: 0 !important;
-}
-
-[data-testid="element-container"]:has(#hp-nav-marker)
-  + [data-testid="element-container"] {
+.hp-nav-fixed {
     position: fixed !important;
     bottom: 0 !important;
-    left: 50% !important;
-    transform: translateX(-50%) !important;
-    width: 390px !important;
-    max-width: 100vw !important;
+    left: 0 !important;
+    transform: none !important;
+    width: 100% !important;
     background: #ffffff !important;
     border-top: 1px solid #EAECF0 !important;
     box-shadow: 0 -2px 16px rgba(0,0,0,.06) !important;
@@ -315,28 +308,19 @@ html, body, [data-testid="stAppViewContainer"] {
     margin: 0 !important;
     padding-bottom: env(safe-area-inset-bottom, 0) !important;
 }
-
-[data-testid="element-container"]:has(#hp-nav-marker)
-  + [data-testid="element-container"]
-  [data-testid="stHorizontalBlock"] {
+.hp-nav-fixed [data-testid="stHorizontalBlock"] {
     width: 100% !important; gap: 0 !important;
     padding: 0 !important; margin: 0 !important;
 }
-[data-testid="element-container"]:has(#hp-nav-marker)
-  + [data-testid="element-container"]
-  [data-testid="column"] {
+.hp-nav-fixed [data-testid="column"] {
     padding: 0 !important; min-width: 0 !important;
 }
-[data-testid="element-container"]:has(#hp-nav-marker)
-  + [data-testid="element-container"]
-  [data-testid="stVerticalBlock"] {
+.hp-nav-fixed [data-testid="stVerticalBlock"] {
     gap: 0 !important; padding: 0 !important;
 }
 
 /* ── nav button: base (inactive) ── */
-[data-testid="element-container"]:has(#hp-nav-marker)
-  + [data-testid="element-container"]
-  div[data-testid="stButton"] > button {
+.hp-nav-fixed div[data-testid="stButton"] > button {
     background: transparent !important;
     border: none !important; border-radius: 0 !important;
     box-shadow: none !important; outline: none !important;
@@ -352,23 +336,16 @@ html, body, [data-testid="stAppViewContainer"] {
     letter-spacing: 0 !important; cursor: pointer !important;
     transition: color .15s !important;
 }
-[data-testid="element-container"]:has(#hp-nav-marker)
-  + [data-testid="element-container"]
-  div[data-testid="stButton"] > button:hover {
+.hp-nav-fixed div[data-testid="stButton"] > button:hover {
     color: #5B75F5 !important;
 }
 
-/* ── nav button: active (primary) – Figma blue circle icon feel ── */
-[data-testid="element-container"]:has(#hp-nav-marker)
-  + [data-testid="element-container"]
-  div[data-testid="stButton"] > button[kind="primary"],
-[data-testid="element-container"]:has(#hp-nav-marker)
-  + [data-testid="element-container"]
-  div[data-testid="stButton"] > button[data-testid="stBaseButton-primary"] {
+/* ── nav button: active (primary) – color only, no border ── */
+.hp-nav-fixed div[data-testid="stButton"] > button[kind="primary"],
+.hp-nav-fixed div[data-testid="stButton"] > button[data-testid="stBaseButton-primary"] {
     background: transparent !important;
     color: #3B5BDB !important;
     border: none !important; box-shadow: none !important;
-    border-top: 2.5px solid #3B5BDB !important;
 }
 
 /* ── sticky header (home page) ── */
@@ -826,6 +803,8 @@ div[data-testid="stExpander"] {
     border-radius: 14px !important; border: 1px solid #E2E8F0 !important;
     background: #fff !important; margin: 4px 16px !important;
 }
+/* hide the 0-height iframe injected by components.html for JS execution */
+iframe[height="0"] { display: none !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -938,8 +917,9 @@ _NAV = [
 ]
 
 def render_bottom_nav():
+    import streamlit.components.v1 as components
     cur = st.session_state.current_page
-    # Marker: CSS uses this to identify and fix the NEXT sibling element
+    # Marker: JS uses this to locate and fix the NEXT sibling element
     st.markdown('<div id="hp-nav-marker"></div>', unsafe_allow_html=True)
     cols = st.columns(5)
     for i, (page_id, icon, label_key) in enumerate(_NAV):
@@ -954,6 +934,34 @@ def render_bottom_nav():
             ):
                 st.session_state.current_page = page_id
                 st.rerun()
+    # Inject JS via iframe (st.markdown scripts are blocked by React; iframe srcdoc executes reliably)
+    components.html("""
+<script>
+(function() {
+    var pd = window.parent.document;
+    function fixNav() {
+        var marker = pd.getElementById('hp-nav-marker');
+        if (!marker) return;
+        // Walk UP until we find a direct child of stVerticalBlock,
+        // then take ITS nextElementSibling — works regardless of wrapper layers
+        var el = marker;
+        while (el && el !== pd.body) {
+            var par = el.parentElement;
+            if (par && par.getAttribute && par.getAttribute('data-testid') === 'stVerticalBlock') {
+                var navContainer = el.nextElementSibling;
+                if (navContainer && !navContainer.classList.contains('hp-nav-fixed')) {
+                    navContainer.classList.add('hp-nav-fixed');
+                }
+                return;
+            }
+            el = par;
+        }
+    }
+    fixNav();
+    new window.parent.MutationObserver(fixNav).observe(pd.body, { childList: true, subtree: true });
+})();
+</script>
+""", height=0)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
