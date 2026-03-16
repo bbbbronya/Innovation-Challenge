@@ -80,7 +80,7 @@ gemini_API_KEY = "your_gemini_key"
 
 Notes:
 
-- AI相关内容可以直接通过上线的链接看，如果本地运行则需要在`secrets.toml`里自行添加API_KEY。
+- AI-related features can be accessed directly via the [deployed link](https://healthpal-v1.streamlit.app/). To run locally, you'll need to add your API_KEY to `secrets.toml` manually.
 
 ### 5. Run app
 
