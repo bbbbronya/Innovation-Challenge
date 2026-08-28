@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "WebFetch(domain:meralion.org)",
-      "WebFetch(domain:sea-lion.ai)",
-      "WebFetch(domain:docs.sea-lion.ai)"
-    ]
-  }
-}

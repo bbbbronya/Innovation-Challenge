@@ -32,21 +32,13 @@ ensure_data_exists()
 # ═══════════════════════════════════════════════════════════════════════════
 # SECRETS
 # ═══════════════════════════════════════════════════════════════════════════
-def _load_local_secrets() -> dict:
-    for p in [os.path.join(os.path.dirname(os.path.abspath(__file__)), "secrets.toml"), "secrets.toml"]:
-        if os.path.exists(p):
-            try:
-                import toml
-                return toml.load(p)
-            except Exception:
-                pass
-    return {}
+MERLION_BASE_URL = "https://api.meralion.ai/v1"
 
-_LOCAL_SECRETS: dict = _load_local_secrets()
 
 def get_secret(key: str, default: str = "") -> str:
-    if key in _LOCAL_SECRETS:
-        return _LOCAL_SECRETS[key]
+    env_value = os.getenv(key) or os.getenv(key.upper())
+    if env_value:
+        return env_value
     try:
         return st.secrets.get(key, default)
     except Exception:
@@ -1033,11 +1025,11 @@ def ask_ai_merlion_audio(audio_bytes: bytes, history: list) -> tuple[str, str]:
     """Send audio to MERaLiON. Returns (transcribed_text, ai_reply)."""
     key = get_secret("merlion_API_KEY")
     if not key:
-        return "🎤 Voice message", "⚠️ MERaLiON API key not configured in secrets.toml"
+        return "🎤 Voice message", "⚠️ MERaLiON API key is not configured"
     try:
         from openai import OpenAI
         import base64
-        client = OpenAI(base_url="http://meralion.org:8010/v1", api_key=key)
+        client = OpenAI(base_url=MERLION_BASE_URL, api_key=key)
         user = get_user()
         lv = get_latest_vitals()
         conditions = ", ".join(user.get("conditions", []))
@@ -1092,11 +1084,11 @@ def ask_ai_merlion_audio(audio_bytes: bytes, history: list) -> tuple[str, str]:
 def ask_ai_merlion(history: list, new_prompt: str) -> str:
     key = get_secret("merlion_API_KEY")
     if not key:
-        return "⚠️ MERaLiON API key not configured in secrets.toml"
+        return "⚠️ MERaLiON API key is not configured"
     try:
         from openai import OpenAI
         client = OpenAI(
-            base_url="http://meralion.org:8010/v1",
+            base_url=MERLION_BASE_URL,
             api_key=key,
         )
         user = get_user()
@@ -1151,7 +1143,7 @@ def ask_ai_gemini_image(image_bytes: bytes, image_type: str, extra_text: str, hi
     """Analyse a food photo via Gemini 2.5 Flash Lite (google-genai SDK)."""
     key = get_secret("gemini_API_KEY")
     if not key:
-        return "⚠️ gemini_API_KEY not configured in secrets.toml"
+        return "⚠️ Gemini API key is not configured"
     try:
         from google import genai
         from google.genai import types
@@ -1717,10 +1709,10 @@ def page_medications():
 def ask_ai_doctor_summary() -> str:
     key = get_secret("merlion_API_KEY")
     if not key:
-        return "⚠️ MERaLiON API key not configured in secrets.toml"
+        return "⚠️ MERaLiON API key is not configured"
     try:
         from openai import OpenAI
-        client = OpenAI(base_url="http://meralion.org:8010/v1", api_key=key)
+        client = OpenAI(base_url=MERLION_BASE_URL, api_key=key)
         user = get_user()
         lv = get_latest_vitals()
         meds = get_medications()

@@ -19,7 +19,7 @@ Innovation-Challenge/
 	healthpal_app.py          # Streamlit app entry
 	data_layer.py             # CSV data layer and business logic
 	requirements.txt          # Python dependencies
-	secrets.toml              # Local API keys (not for production)
+	.streamlit/               # Example local secrets configuration
 	data/                     # CSV data files
 ```
 
@@ -63,15 +63,15 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-Optional but recommended (used by image analysis path):
-
-```bash
-pip install google-genai toml
-```
-
 ### 4. Configure API keys
 
-Create or update `secrets.toml` in the project root:
+Copy the tracked example and add your local credentials:
+
+```bash
+cp .streamlit/secrets.toml.example .streamlit/secrets.toml
+```
+
+Then edit `.streamlit/secrets.toml`:
 
 ```toml
 merlion_API_KEY = "your_meralion_key"
@@ -80,7 +80,9 @@ gemini_API_KEY = "your_gemini_key"
 
 Notes:
 
-- AI-related features can be accessed directly via the [deployed link](https://healthpal-v1.streamlit.app/). To run locally, you'll need to add your API_KEY to `secrets.toml` manually.
+- `.streamlit/secrets.toml` is ignored by Git. Never commit API keys.
+- The app also accepts `MERLION_API_KEY` and `GEMINI_API_KEY` environment variables.
+- AI-related features can be accessed directly via the [deployed link](https://healthpal-v1.streamlit.app/).
 
 ### 5. Run app
 
@@ -105,5 +107,10 @@ Main files include:
 - `lab_results.csv`
 - `community_posts.csv`
 
+The included CSV files are for demonstration only. Do not commit real personal or health data to this repository.
+
+## Safety Notice
+
+HealthPal is a prototype and does not provide medical diagnosis or treatment advice. Users should consult a qualified healthcare professional for medical decisions.
 
 
